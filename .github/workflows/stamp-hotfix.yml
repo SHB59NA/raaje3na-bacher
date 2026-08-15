@@ -1,0 +1,48 @@
+name: Apply stamp controls hotfix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/stamp-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch stamp controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace('Prototype v0.6.1', 'Prototype v0.6.2')
+          s = s.replace('PROTOTYPE v0.6.1 // FAMILY CARDS', 'PROTOTYPE v0.6.2 // STAMP HOTFIX')
+
+          s = s.replace('z-index:20}.case-head', 'z-index:500}.case-head')
+          s = s.replace('.stamprack{display:grid;', '.stamprack{position:relative;z-index:520;display:grid;')
+          s = s.replace('.stampbtn{padding:', '.stampbtn{position:relative;z-index:521;pointer-events:auto;padding:')
+          s = s.replace('z-index:25}.docchip', 'z-index:300}.docchip')
+          s = s.replace('z-index:80!important;', 'z-index:180!important;')
+
+          old = "function setStamp(type){selectedStamp=type;$$('.stampbtn').forEach(b=>b.classList.toggle('active',b.dataset.stamp===type));$$('.paper').forEach(p=>p.classList.toggle('stamp-target',p.dataset.type==='request'));const n={approve:'اعتماد',reject:'رفض',special:'حالات خاصة'};info.textContent=`الختم المختار: ${n[type]}. اضغط على طلب المعاملة.`}$$('.stampbtn').forEach(b=>b.onclick=()=>setStamp(b.dataset.stamp));"
+          new = "function setStamp(type){if(gameOver)return;selectedStamp=type;$$('.stampbtn').forEach(b=>b.classList.toggle('active',b.dataset.stamp===type));const req=$$('.paper').find(p=>p.dataset.type==='request');$$('.paper').forEach(p=>p.classList.toggle('stamp-target',p===req));if(req){req.style.zIndex=190;req.classList.add('zoomed');setTimeout(()=>{if(selectedStamp)req.classList.remove('zoomed')},700)}const n={approve:'اعتماد',reject:'رفض',special:'حالات خاصة'};info.textContent=`تم اختيار ختم ${n[type]}. الحين اضغط على ورقة طلب المعاملة المظللة عشان تحط الختم.`}$$('.stampbtn').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setStamp(b.dataset.stamp)}));"
+          if old not in s:
+              raise SystemExit('stamp handler pattern not found')
+          s = s.replace(old, new)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix stamp decision controls" || exit 0
+          git push origin main
