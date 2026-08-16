@@ -2,7 +2,7 @@
 // Gameplay-first prototype. Graphics remain placeholders until the loop is approved.
 
 (function(){
-  const VERSION='v1.1.0';
+  const VERSION='v1.1.1';
   const INIT_KEY='raaje3na_reception_v110_initialized';
   const QUESTIONS_PER_CASE=3;
 
@@ -218,6 +218,12 @@
       .v2Notes{min-height:34px;background:#efe4bd;color:#171b17;border:3px solid #171b17;padding:6px}
       .v2Notes div{border-bottom:1px dashed #7c745e;padding:3px 0}.v2Notes div:last-child{border-bottom:0}
       .v2Counter{font:900 10px monospace;color:#d5aa4f;margin-bottom:6px}
+      .v2Conversation{margin:7px 0;background:#121a15;border:3px solid #0d120e;padding:7px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+      .v2ConversationTitle{font-size:9px;color:#d5aa4f;font-weight:900;margin-bottom:2px}
+      .v2Turn{padding:6px 7px;border:2px solid #171b17;line-height:1.55;font-size:10px}
+      .v2Turn.employee{background:#d8cfaa;color:#171b17;margin-left:24px}
+      .v2Turn.visitor{background:#27352b;color:#f1e9ce;margin-right:24px}
+      .v2Who{display:block;font-size:8px;font-weight:900;margin-bottom:2px;opacity:.8}
     `;
     document.head.appendChild(style);
   }
@@ -225,6 +231,13 @@
   function injectUI(){
     injectStyle();
     const side=$('#intakeScreen .sidePanel');
+    const speech=$('#intakeScreen .speech');
+    if(speech&&!$('#conversationLog')){
+      const log=document.createElement('div');
+      log.id='conversationLog';log.className='v2Conversation';
+      log.innerHTML='<div class="v2ConversationTitle">سجل الحوار</div><div id="conversationTurns"></div>';
+      speech.insertAdjacentElement('afterend',log);
+    }
     if(!side||$('#casePhase'))return;
 
     const phase=document.createElement('div');
@@ -257,8 +270,21 @@
     $('#toolMarker').onclick=useMarker;
   }
 
+  function renderConversation(){
+    const box=$('#conversationTurns');if(!box||!receptionState)return;
+    const visitor=currentCase()?currentCase().name:'المراجع';
+    box.innerHTML=receptionState.conversation.map(turn=>`<div class="v2Turn ${turn.role}"><span class="v2Who">${turn.role==='employee'?'الموظف':esc(visitor)}</span>${esc(turn.text)}</div>`).join('');
+    const log=$('#conversationLog');if(log)log.scrollTop=log.scrollHeight;
+  }
+
+  function appendConversation(role,text){
+    if(!receptionState||!text)return;
+    receptionState.conversation.push({role,text});
+    renderConversation();
+  }
+
   function startState(c){
-    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false};
+    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false,conversation:[],askedQuestions:new Set(),answering:false};
     renderQuestions();
     renderNotes();
     updatePhase();
@@ -283,27 +309,41 @@
     counter.textContent=receptionState.questionsLeft+' أسئلة متبقية';
     wrap.innerHTML='';
     p.questions.forEach((item,i)=>{
-      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0;
+      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i);
       b.onclick=()=>askQuestion(i,b);wrap.appendChild(b);
     });
   }
 
   function askQuestion(i,button){
-    if(!receptionState||receptionState.questionsLeft<=0)return;
+    if(!receptionState||receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i))return;
     const item=currentProfile().questions[i];
-    receptionState.questionsLeft--;dayQuestions++;
-    $('#intakeDialogue').textContent=item.a;
-    button.disabled=true;
-    addNote('سألت: '+item.q);
-    if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
+    receptionState.questionsLeft--;dayQuestions++;receptionState.answering=true;receptionState.askedQuestions.add(i);
+    $('#intakeSpeaker').textContent='الموظف';
+    $('#intakeDialogue').textContent=item.q;
+    appendConversation('employee',item.q);
     renderQuestions();
-    setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تستلم الملف بأي وقت.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
+    setNotice('المراجع قاعد يجاوب...');
+    setTimeout(()=>{
+      if(!receptionState)return;
+      $('#intakeSpeaker').textContent=currentCase().name;
+      $('#intakeDialogue').textContent=item.a;
+      appendConversation('visitor',item.a);
+      addNote('سؤال: '+item.q+' | الجواب: '+item.a);
+      if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
+      receptionState.answering=false;
+      renderQuestions();
+      setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تكمل تسأله أو تستلم الملف.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
+    },420);
   }
 
   function receiveFile(){
     if(!receptionState||receptionState.fileReceived)return;
     receptionState.fileReceived=true;
     const c=currentCase();
+    appendConversation('employee','عطني الملف لو سمحت.');
+    appendConversation('visitor','تفضل، هذد الملف.');
+    $('#intakeSpeaker').textContent=c.name;
+    $('#intakeDialogue').textContent='تفضل، هذا الملف.';
     $('#handoverBtn').disabled=true;
     $('#handoverBtn').textContent='الملف مستلم';
     $('#approveRouteBtn').disabled=false;
@@ -484,10 +524,12 @@
     $('#intakeCaseTop').textContent=`CASE ${caseIndex+1}/${currentBatch.length} • DAY ${day}`;
     $('#intakeClock').textContent=`${String(7+Math.floor((caseIndex*42+30)/60)).padStart(2,'0')}:${String((caseIndex*42+30)%60).padStart(2,'0')}`;
     $('#intakeSpeaker').textContent=c.name;
-    $('#intakeDialogue').textContent=randLine(c.introLines)||'السلام عليكم.';
+    const intro=randLine(c.introLines)||'السلام عليكم.';
+    $('#intakeDialogue').textContent=intro;
+    appendConversation('visitor',intro);
     $('#intakeAvatar').className='avatar '+(c.avatar||'');
     $('#intakeAvatar').title='اضغط لسماع تعليق ثاني';
-    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line};
+    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)}};
     $('#intakeFileTitle').textContent=c.name+' — الملف بيد المراجع';
     $('#intakeServiceTag').textContent='طلب شفهي';
     $('#intakeDocs').innerHTML='<div class="docCard"><h4>الملف للحين عند المراجع</h4><p>اسأله أول أو استلم الملف مباشرة.</p></div>';
@@ -508,7 +550,7 @@
     if(stage==='intake'){
       const c=currentCase();
       const lines=reactionType==='approve'?c.approveLines:reactionType==='reject'?c.rejectLines:null;
-      reaction=randLine(lines);if(reaction)$('#intakeDialogue').textContent=reaction;
+      reaction=randLine(lines);if(reaction){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=reaction;appendConversation('visitor',reaction)};
     }
     const quote=reaction?'<br><span class="tiny">«'+esc(reaction)+'»</span>':'';
     if(ok){dayScore++;adjustSalary(REWARD);feedback('✓ صح<br><span class="tiny">'+esc(why)+'</span>'+quote,'goodFb',1850)}
@@ -518,7 +560,7 @@
 
   resolveWasta=function(){
     if(busy)return;busy=true;
-    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line;
+    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)};
     const chance=Math.min(80,25+wastaHeat);const caught=Math.random()*100<chance;
     if(caught){wastaHeat=0;save();feedback(`التفتيش مسك المعاملة.<br><b>-50 دينار</b><br><span class="tiny">نسبة الانكشاف كانت ${chance}%</span>`,'badFb',1700);if(!adjustSalary(-WASTA_PENALTY))return;dayWrong++}
     else{wastaHeat=Math.min(55,wastaHeat+10);save();feedback(`عدّت هالمرة.<br><span class="tiny">ما أخذت +5، وWasta Heat صار ${wastaHeat}%.</span>`,'wastaFb',1700)}
