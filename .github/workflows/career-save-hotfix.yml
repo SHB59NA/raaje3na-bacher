@@ -1,4 +1,4 @@
-name: Add and validate reception conversations v1.1.1
+name: Apply reception conversations v1.1.1
 on:
   push:
     paths:
@@ -10,222 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Add real employee visitor conversations
+      - name: Patch question answer conversations
         run: |
-          python <<'PY'
-          from pathlib import Path
-
-          p=Path('reception-v2.js')
-          s=p.read_text(encoding='utf-8')
-
-          s=s.replace("const VERSION='v1.1.0';", "const VERSION='v1.1.1';", 1)
-
-          css_old="""      .v2Counter{font:900 10px monospace;color:#d5aa4f;margin-bottom:6px}\n"""
-          css_new="""      .v2Counter{font:900 10px monospace;color:#d5aa4f;margin-bottom:6px}
-      .v2Conversation{margin:7px 0;background:#121a15;border:3px solid #0d120e;padding:7px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
-      .v2ConversationTitle{font-size:9px;color:#d5aa4f;font-weight:900;margin-bottom:2px}
-      .v2Turn{padding:6px 7px;border:2px solid #171b17;line-height:1.55;font-size:10px}
-      .v2Turn.employee{background:#d8cfaa;color:#171b17;margin-left:24px}
-      .v2Turn.visitor{background:#27352b;color:#f1e9ce;margin-right:24px}
-      .v2Who{display:block;font-size:8px;font-weight:900;margin-bottom:2px;opacity:.8}
-"""
-          if css_old not in s:
-              raise SystemExit('Conversation CSS anchor not found')
-          s=s.replace(css_old,css_new,1)
-
-          ui_old="""    const side=$('#intakeScreen .sidePanel');
-    if(!side||$('#casePhase'))return;
-"""
-          ui_new="""    const side=$('#intakeScreen .sidePanel');
-    const speech=$('#intakeScreen .speech');
-    if(speech&&!$('#conversationLog')){
-      const log=document.createElement('div');
-      log.id='conversationLog';log.className='v2Conversation';
-      log.innerHTML='<div class="v2ConversationTitle">سجل الحوار</div><div id="conversationTurns"></div>';
-      speech.insertAdjacentElement('afterend',log);
-    }
-    if(!side||$('#casePhase'))return;
-"""
-          if ui_old not in s:
-              raise SystemExit('Conversation UI anchor not found')
-          s=s.replace(ui_old,ui_new,1)
-
-          helper_anchor="""  function startState(c){
-"""
-          helpers="""  function renderConversation(){
-    const box=$('#conversationTurns');if(!box||!receptionState)return;
-    const visitor=currentCase()?currentCase().name:'المراجع';
-    box.innerHTML=receptionState.conversation.map(turn=>`<div class="v2Turn ${turn.role}"><span class="v2Who">${turn.role==='employee'?'الموظف':esc(visitor)}</span>${esc(turn.text)}</div>`).join('');
-    const log=$('#conversationLog');if(log)log.scrollTop=log.scrollHeight;
-  }
-
-  function appendConversation(role,text){
-    if(!receptionState||!text)return;
-    receptionState.conversation.push({role,text});
-    renderConversation();
-  }
-
-  function startState(c){
-"""
-          if helper_anchor not in s:
-              raise SystemExit('Conversation helper anchor not found')
-          s=s.replace(helper_anchor,helpers,1)
-
-          state_old="""    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false};
-"""
-          state_new="""    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false,conversation:[],askedQuestions:new Set(),answering:false};
-"""
-          if state_old not in s:
-              raise SystemExit('Reception state anchor not found')
-          s=s.replace(state_old,state_new,1)
-
-          render_old="""      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0;
-"""
-          render_new="""      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i);
-"""
-          if render_old not in s:
-              raise SystemExit('Question render anchor not found')
-          s=s.replace(render_old,render_new,1)
-
-          ask_old="""  function askQuestion(i,button){
-    if(!receptionState||receptionState.questionsLeft<=0)return;
-    const item=currentProfile().questions[i];
-    receptionState.questionsLeft--;dayQuestions++;
-    $('#intakeDialogue').textContent=item.a;
-    button.disabled=true;
-    addNote('سألت: '+item.q);
-    if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
-    renderQuestions();
-    setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تستلم الملف بأي وقت.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
-  }
-"""
-          ask_new="""  function askQuestion(i,button){
-    if(!receptionState||receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i))return;
-    const item=currentProfile().questions[i];
-    receptionState.questionsLeft--;dayQuestions++;receptionState.answering=true;receptionState.askedQuestions.add(i);
-    $('#intakeSpeaker').textContent='الموظف';
-    $('#intakeDialogue').textContent=item.q;
-    appendConversation('employee',item.q);
-    renderQuestions();
-    setNotice('المراجع قاعد يجاوب...');
-    setTimeout(()=>{
-      if(!receptionState)return;
-      $('#intakeSpeaker').textContent=currentCase().name;
-      $('#intakeDialogue').textContent=item.a;
-      appendConversation('visitor',item.a);
-      addNote('سؤال: '+item.q+' | الجواب: '+item.a);
-      if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
-      receptionState.answering=false;
-      renderQuestions();
-      setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تكمل تسأله أو تستلم الملف.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
-    },420);
-  }
-"""
-          if ask_old not in s:
-              raise SystemExit('Question/answer function anchor not found')
-          s=s.replace(ask_old,ask_new,1)
-
-          receive_old="""    receptionState.fileReceived=true;
-    const c=currentCase();
-"""
-          receive_new="""    receptionState.fileReceived=true;
-    const c=currentCase();
-    appendConversation('employee','عطني الملف لو سمحت.');
-    appendConversation('visitor','تفضل، هذا الملف.');
-    $('#intakeSpeaker').textContent=c.name;
-    $('#intakeDialogue').textContent='تفضل، هذا الملف.';
-"""
-          if receive_old not in s:
-              raise SystemExit('File handover dialogue anchor not found')
-          s=s.replace(receive_old,receive_new,1)
-
-          intro_old="""    $('#intakeSpeaker').textContent=c.name;
-    $('#intakeDialogue').textContent=randLine(c.introLines)||'السلام عليكم.';
-"""
-          intro_new="""    $('#intakeSpeaker').textContent=c.name;
-    const intro=randLine(c.introLines)||'السلام عليكم.';
-    $('#intakeDialogue').textContent=intro;
-    appendConversation('visitor',intro);
-"""
-          if intro_old not in s:
-              raise SystemExit('Intro dialogue anchor not found')
-          s=s.replace(intro_old,intro_new,1)
-
-          avatar_old="""    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line};
-"""
-          avatar_new="""    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)}};
-"""
-          if avatar_old not in s:
-              raise SystemExit('Avatar dialogue anchor not found')
-          s=s.replace(avatar_old,avatar_new,1)
-
-          reaction_old="""      reaction=randLine(lines);if(reaction)$('#intakeDialogue').textContent=reaction;
-"""
-          reaction_new="""      reaction=randLine(lines);if(reaction){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=reaction;appendConversation('visitor',reaction)};
-"""
-          if reaction_old not in s:
-              raise SystemExit('Decision reaction anchor not found')
-          s=s.replace(reaction_old,reaction_new,1)
-
-          wasta_old="""    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line;
-"""
-          wasta_new="""    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)};
-"""
-          if wasta_old not in s:
-              raise SystemExit('Wasta dialogue anchor not found')
-          s=s.replace(wasta_old,wasta_new,1)
-
-          p.write_text(s,encoding='utf-8')
-
-          idx=Path('index.html')
-          h=idx.read_text(encoding='utf-8')
-          h=h.replace('reception-v2.js?v=1.1.0','reception-v2.js?v=1.1.1')
-          idx.write_text(h,encoding='utf-8')
-          PY
-
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwID0gUGF0aCgicmVjZXB0aW9uLXYyLmpzIikKcyA9IHAucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgpkZWYgcmVwbGFjZV9vbmNlKG9sZCwgbmV3LCBsYWJlbCk6CiAgICBnbG9iYWwgcwogICAgaWYgb2xkIG5vdCBpbiBzOgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJ7bGFiZWx9IGFuY2hvciBub3QgZm91bmQiKQogICAgcyA9IHMucmVwbGFjZShvbGQsIG5ldywgMSkKCnJlcGxhY2Vfb25jZSgiY29uc3QgVkVSU0lPTj0ndjEuMS4wJzsiLCAiY29uc3QgVkVSU0lPTj0ndjEuMS4xJzsiLCAidmVyc2lvbiIpCgpyZXBsYWNlX29uY2UoCiIgICAgICAudjJDb3VudGVye2ZvbnQ6OTAwIDEwcHggbW9ub3NwYWNlO2NvbG9yOiNkNWFhNGY7bWFyZ2luLWJvdHRvbTo2cHh9XG4iLAoiIiIgICAgICAudjJDb3VudGVye2ZvbnQ6OTAwIDEwcHggbW9ub3NwYWNlO2NvbG9yOiNkNWFhNGY7bWFyZ2luLWJvdHRvbTo2cHh9CiAgICAgIC52MkNvbnZlcnNhdGlvbnttYXJnaW46N3B4IDA7YmFja2dyb3VuZDojMTIxYTE1O2JvcmRlcjozcHggc29saWQgIzBkMTIwZTtwYWRkaW5nOjdweDttYXgtaGVpZ2h0OjE3MHB4O292ZXJmbG93LXk6YXV0bztkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2dhcDo2cHh9CiAgICAgIC52MkNvbnZlcnNhdGlvblRpdGxle2ZvbnQtc2l6ZTo5cHg7Y29sb3I6I2Q1YWE0Zjtmb250LXdlaWdodDo5MDA7bWFyZ2luLWJvdHRvbToycHh9CiAgICAgIC52MlR1cm57cGFkZGluZzo2cHggN3B4O2JvcmRlcjoycHggc29saWQgIzE3MWIxNztsaW5lLWhlaWdodDoxLjU1O2ZvbnQtc2l6ZToxMHB4fQogICAgICAudjJUdXJuLmVtcGxveWVle2JhY2tncm91bmQ6I2Q4Y2ZhYTtjb2xvcjojMTcxYjE3O21hcmdpbi1sZWZ0OjI0cHh9CiAgICAgIC52MlR1cm4udmlzaXRvcntiYWNrZ3JvdW5kOiMyNzM1MmI7Y29sb3I6I2YxZTljZTttYXJnaW4tcmlnaHQ6MjRweH0KICAgICAgLnYyV2hve2Rpc3BsYXk6YmxvY2s7Zm9udC1zaXplOjhweDtmb250LXdlaWdodDo5MDA7bWFyZ2luLWJvdHRvbToycHg7b3BhY2l0eTouOH0KIiIiLAoiY29udmVyc2F0aW9uIGNzcyIpCgpyZXBsYWNlX29uY2UoCiIiIiAgICBjb25zdCBzaWRlPSQoJyNpbnRha2VTY3JlZW4gLnNpZGVQYW5lbCcpOwogICAgaWYoIXNpZGV8fCQoJyNjYXNlUGhhc2UnKSlyZXR1cm47CiIiIiwKIiIiICAgIGNvbnN0IHNpZGU9JCgnI2ludGFrZVNjcmVlbiAuc2lkZVBhbmVsJyk7CiAgICBjb25zdCBzcGVlY2g9JCgnI2ludGFrZVNjcmVlbiAuc3BlZWNoJyk7CiAgICBpZihzcGVlY2gmJiEkKCcjY29udmVyc2F0aW9uTG9nJykpewogICAgICBjb25zdCBsb2c9ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7CiAgICAgIGxvZy5pZD0nY29udmVyc2F0aW9uTG9nJztsb2cuY2xhc3NOYW1lPSd2MkNvbnZlcnNhdGlvbic7CiAgICAgIGxvZy5pbm5lckhUTUw9JzxkaXYgY2xhc3M9InYyQ29udmVyc2F0aW9uVGl0bGUiPtiz2KzZhCDYp9mE2K3ZiNin2LE8L2Rpdj48ZGl2IGlkPSJjb252ZXJzYXRpb25UdXJucyI+PC9kaXY+JzsKICAgICAgc3BlZWNoLmluc2VydEFkamFjZW50RWxlbWVudCgnYWZ0ZXJlbmQnLGxvZyk7CiAgICB9CiAgICBpZighc2lkZXx8JCgnI2Nhc2VQaGFzZScpKXJldHVybjsKIiIiLAoiY29udmVyc2F0aW9uIHVpIikKCnJlcGxhY2Vfb25jZSgKIiAgZnVuY3Rpb24gc3RhcnRTdGF0ZShjKXtcbiIsCiIiIiAgZnVuY3Rpb24gcmVuZGVyQ29udmVyc2F0aW9uKCl7CiAgICBjb25zdCBib3g9JCgnI2NvbnZlcnNhdGlvblR1cm5zJyk7aWYoIWJveHx8IXJlY2VwdGlvblN0YXRlKXJldHVybjsKICAgIGNvbnN0IHZpc2l0b3I9Y3VycmVudENhc2UoKT9jdXJyZW50Q2FzZSgpLm5hbWU6J9in2YTZhdix2KfYrNi5JzsKICAgIGJveC5pbm5lckhUTUw9cmVjZXB0aW9uU3RhdGUuY29udmVyc2F0aW9uLm1hcCh0dXJuPT5gPGRpdiBjbGFzcz0idjJUdXJuICR7dHVybi5yb2xlfSI+PHNwYW4gY2xhc3M9InYyV2hvIj4ke3R1cm4ucm9sZT09PSdlbXBsb3llZSc/J9in2YTZhdmI2LjZgSc6ZXNjKHZpc2l0b3IpfTwvc3Bhbj4ke2VzYyh0dXJuLnRleHQpfTwvZGl2PmApLmpvaW4oJycpOwogICAgY29uc3QgbG9nPSQoJyNjb252ZXJzYXRpb25Mb2cnKTtpZihsb2cpbG9nLnNjcm9sbFRvcD1sb2cuc2Nyb2xsSGVpZ2h0OwogIH0KCiAgZnVuY3Rpb24gYXBwZW5kQ29udmVyc2F0aW9uKHJvbGUsdGV4dCl7CiAgICBpZighcmVjZXB0aW9uU3RhdGV8fCF0ZXh0KXJldHVybjsKICAgIHJlY2VwdGlvblN0YXRlLmNvbnZlcnNhdGlvbi5wdXNoKHtyb2xlLHRleHR9KTsKICAgIHJlbmRlckNvbnZlcnNhdGlvbigpOwogIH0KCiAgZnVuY3Rpb24gc3RhcnRTdGF0ZShjKXsKIiIiLAoiY29udmVyc2F0aW9uIGhlbHBlcnMiKQoKcmVwbGFjZV9vbmNlKAoiICAgIHJlY2VwdGlvblN0YXRlPXtmaWxlUmVjZWl2ZWQ6ZmFsc2UscXVlc3Rpb25zTGVmdDpRVUVTVElPTlNfUEVSX0NBU0UsZXh0cmFEb2NzOltdLGluc3BlY3RlZDpuZXcgU2V0KCksbm90ZXM6W10sc3lzdGVtQ2hlY2tlZDpmYWxzZSxtYXJrZXJVc2VkOmZhbHNlfTtcbiIsCiIgICAgcmVjZXB0aW9uU3RhdGU9e2ZpbGVSZWNlaXZlZDpmYWxzZSxxdWVzdGlvbnNMZWZ0OlFVRVNUSU9OU19QRVJfQ0FTRSxleHRyYURvY3M6W10saW5zcGVjdGVkOm5ldyBTZXQoKSxub3RlczpbXSxzeXN0ZW1DaGVja2VkOmZhbHNlLG1hcmtlclVzZWQ6ZmFsc2UsY29udmVyc2F0aW9uOltdLGFza2VkUXVlc3Rpb25zOm5ldyBTZXQoKSxhbnN3ZXJpbmc6ZmFsc2V9O1xuIiwKInJlY2VwdGlvbiBzdGF0ZSIpCgpyZXBsYWNlX29uY2UoCiIgICAgICBjb25zdCBiPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2J1dHRvbicpO2IuY2xhc3NOYW1lPSd2MlF1ZXN0aW9uJztiLnRleHRDb250ZW50PWl0ZW0ucTtiLmRpc2FibGVkPXJlY2VwdGlvblN0YXRlLnF1ZXN0aW9uc0xlZnQ8PTA7XG4iLAoiICAgICAgY29uc3QgYj1kb2N1bWVudC5jcmVhdGVFbGVtZW50KCdidXR0b24nKTtiLmNsYXNzTmFtZT0ndjJRdWVzdGlvbic7Yi50ZXh0Q29udGVudD1pdGVtLnE7Yi5kaXNhYmxlZD1yZWNlcHRpb25TdGF0ZS5xdWVzdGlvbnNMZWZ0PD0wfHxyZWNlcHRpb25TdGF0ZS5hbnN3ZXJpbmd8fHJlY2VwdGlvblN0YXRlLmFza2VkUXVlc3Rpb25zLmhhcyhpKTtcbiIsCiJxdWVzdGlvbiByZW5kZXIiKQoKcmVwbGFjZV9vbmNlKAoiIiIgIGZ1bmN0aW9uIGFza1F1ZXN0aW9uKGksYnV0dG9uKXsKICAgIGlmKCFyZWNlcHRpb25TdGF0ZXx8cmVjZXB0aW9uU3RhdGUucXVlc3Rpb25zTGVmdDw9MClyZXR1cm47CiAgICBjb25zdCBpdGVtPWN1cnJlbnRQcm9maWxlKCkucXVlc3Rpb25zW2ldOwogICAgcmVjZXB0aW9uU3RhdGUucXVlc3Rpb25zTGVmdC0tO2RheVF1ZXN0aW9ucysrOwogICAgJCgnI2ludGFrZURpYWxvZ3VlJykudGV4dENvbnRlbnQ9aXRlbS5hOwogICAgYnV0dG9uLmRpc2FibGVkPXRydWU7CiAgICBhZGROb3RlKCfYs9ij2YTYqjogJytpdGVtLnEpOwogICAgaWYoaXRlbS5yZXZlYWxEb2Mpe3JlY2VwdGlvblN0YXRlLmV4dHJhRG9jcy5wdXNoKGl0ZW0ucmV2ZWFsRG9jKTtpZihyZWNlcHRpb25TdGF0ZS5maWxlUmVjZWl2ZWQpcmVuZGVyRG9jcygpO30KICAgIHJlbmRlclF1ZXN0aW9ucygpOwogICAgc2V0Tm90aWNlKHJlY2VwdGlvblN0YXRlLnF1ZXN0aW9uc0xlZnQ/YNio2KfZgtmKICR7cmVjZXB0aW9uU3RhdGUucXVlc3Rpb25zTGVmdH0g2LPYpNin2YQuINiq2YLYr9ixINiq2LPYqtmE2YUg2KfZhNmF2YTZgSDYqNij2Yog2YjZgtiqLmA6J9iu2YTYtdiqINij2LPYptmE2KrZgy4g2KfZhNit2YrZhiDYp9i52KrZhdivINi52YTZiSDYp9mE2YXZhNmBINmI2KfZhNij2K/ZiNin2KouJyk7CiAgfQoiIiIsCiIiIiAgZnVuY3Rpb24gYXNrUXVlc3Rpb24oaSxidXR0b24pewogICAgaWYoIXJlY2VwdGlvblN0YXRlfHxyZWNlcHRpb25TdGF0ZS5xdWVzdGlvbnNMZWZ0PD0wfHxyZWNlcHRpb25TdGF0ZS5hbnN3ZXJpbmd8fHJlY2VwdGlvblN0YXRlLmFza2VkUXVlc3Rpb25zLmhhcyhpKSlyZXR1cm47CiAgICBjb25zdCBpdGVtPWN1cnJlbnRQcm9maWxlKCkucXVlc3Rpb25zW2ldOwogICAgcmVjZXB0aW9uU3RhdGUucXVlc3Rpb25zTGVmdC0tO2RheVF1ZXN0aW9ucysrO3JlY2VwdGlvblN0YXRlLmFuc3dlcmluZz10cnVlO3JlY2VwdGlvblN0YXRlLmFza2VkUXVlc3Rpb25zLmFkZChpKTsKICAgICQoJyNpbnRha2VTcGVha2VyJykudGV4dENvbnRlbnQ9J9in2YTZhdmI2LjZgSc7CiAgICAkKCcjaW50YWtlRGlhbG9ndWUnKS50ZXh0Q29udGVudD1pdGVtLnE7CiAgICBhcHBlbmRDb252ZXJzYXRpb24oJ2VtcGxveWVlJyxpdGVtLnEpOwogICAgcmVuZGVyUXVlc3Rpb25zKCk7CiAgICBzZXROb3RpY2UoJ9in2YTZhdix2KfYrNi5INmC2KfYudivINmK2KzYp9mI2KguLi4nKTsKICAgIHNldFRpbWVvdXQoKCk9PnsKICAgICAgaWYoIXJlY2VwdGlvblN0YXRlKXJldHVybjsKICAgICAgJCgnI2ludGFrZVNwZWFrZXInKS50ZXh0Q29udGVudD1jdXJyZW50Q2FzZSgpLm5hbWU7CiAgICAgICQoJyNpbnRha2VEaWFsb2d1ZScpLnRleHRDb250ZW50PWl0ZW0uYTsKICAgICAgYXBwZW5kQ29udmVyc2F0aW9uKCd2aXNpdG9yJyxpdGVtLmEpOwogICAgICBhZGROb3RlKCfYs9ik2KfZhDogJytpdGVtLnErJyB8INin2YTYrNmI2KfYqDogJytpdGVtLmEpOwogICAgICBpZihpdGVtLnJldmVhbERvYyl7cmVjZXB0aW9uU3RhdGUuZXh0cmFEb2NzLnB1c2goaXRlbS5yZXZlYWxEb2MpO2lmKHJlY2VwdGlvblN0YXRlLmZpbGVSZWNlaXZlZClyZW5kZXJEb2NzKCk7fQogICAgICByZWNlcHRpb25TdGF0ZS5hbnN3ZXJpbmc9ZmFsc2U7CiAgICAgIHJlbmRlclF1ZXN0aW9ucygpOwogICAgICBzZXROb3RpY2UocmVjZXB0aW9uU3RhdGUucXVlc3Rpb25zTGVmdD9g2KjYp9mC2YogJHtyZWNlcHRpb25TdGF0ZS5xdWVzdGlvbnNMZWZ0fSDYs9ik2KfZhC4g2KrZgtiv2LEg2KrZg9mF2YQg2KrYs9ij2YTZhyDYo9mIINiq2LPYqtmE2YUg2KfZhNmF2YTZgS5gOifYrtmE2LXYqiDYo9iz2KbZhNiq2YMuINin2YTYrdmK2YYg2KfYudiq2YXYryDYudmE2Ykg2KfZhNmF2YTZgSDZiNin2YTYo9iv2YjYp9iqLicpOwogICAgfSw0MjApOwogIH0KIiIiLAoiYXNrIHF1ZXN0aW9uIikKCnJlcGxhY2Vfb25jZSgKIiIiICAgIHJlY2VwdGlvblN0YXRlLmZpbGVSZWNlaXZlZD10cnVlOwogICAgY29uc3QgYz1jdXJyZW50Q2FzZSgpOwoiIiIsCiIiIiAgICByZWNlcHRpb25TdGF0ZS5maWxlUmVjZWl2ZWQ9dHJ1ZTsKICAgIGNvbnN0IGM9Y3VycmVudENhc2UoKTsKICAgIGFwcGVuZENvbnZlcnNhdGlvbignZW1wbG95ZWUnLCfYudi32YbZiiDYp9mE2YXZhNmBINmE2Ygg2LPZhdit2KouJyk7CiAgICBhcHBlbmRDb252ZXJzYXRpb24oJ3Zpc2l0b3InLCfYqtmB2LbZhNiMINmH2LDYryDYp9mE2YXZhNmBLicpOwogICAgJCgnI2ludGFrZVNwZWFrZXInKS50ZXh0Q29udGVudD1jLm5hbWU7CiAgICAkKCcjaW50YWtlRGlhbG9ndWUnKS50ZXh0Q29udGVudD0n2KrZgdi22YTYjCDZh9iw2Kcg2KfZhNmF2YTZgS4nOwoiIiIsCiJmaWxlIGhhbmRvdmVyIikKCnJlcGxhY2Vfb25jZSgKIiIiICAgICQoJyNpbnRha2VTcGVha2VyJykudGV4dENvbnRlbnQ9Yy5uYW1lOwogICAgJCgnI2ludGFrZURpYWxvZ3VlJykudGV4dENvbnRlbnQ9cmFuZExpbmUoYy5pbnRyb0xpbmVzKXx8J9in2YTYs9mE2KfZhSDYudmE2YrZg9mFLic7CiIiIiwKIiIiICAgICQoJyNpbnRha2VTcGVha2VyJykudGV4dENvbnRlbnQ9Yy5uYW1lOwogICAgY29uc3QgaW50cm89cmFuZExpbmUoYy5pbnRyb0xpbmVzKXx8J9in2YTYs9mE2KfZhSDYudmE2YrZg9mFLic7CiAgICAkKCcjaW50YWtlRGlhbG9ndWUnKS50ZXh0Q29udGVudD1pbnRybzsKICAgIGFwcGVuZENvbnZlcnNhdGlvbigndmlzaXRvcicsaW50cm8pOwoiIiIsCiJpbnRybyIpCgpyZXBsYWNlX29uY2UoCiIgICAgJCgnI2ludGFrZUF2YXRhcicpLm9uY2xpY2s9KCk9Pntjb25zdCBsaW5lPXJhbmRMaW5lKGMuaWRsZUxpbmVzKTtpZihsaW5lKSQoJyNpbnRha2VEaWFsb2d1ZScpLnRleHRDb250ZW50PWxpbmV9O1xuIiwKIiAgICAkKCcjaW50YWtlQXZhdGFyJykub25jbGljaz0oKT0+e2NvbnN0IGxpbmU9cmFuZExpbmUoYy5pZGxlTGluZXMpO2lmKGxpbmUpeyQoJyNpbnRha2VTcGVha2VyJykudGV4dENvbnRlbnQ9Yy5uYW1lOyQoJyNpbnRha2VEaWFsb2d1ZScpLnRleHRDb250ZW50PWxpbmU7YXBwZW5kQ29udmVyc2F0aW9uKCd2aXNpdG9yJyxsaW5lKX19O1xuIiwKImF2YXRhciBkaWFsb2d1ZSIpCgpyZXBsYWNlX29uY2UoCiIgICAgICByZWFjdGlvbj1yYW5kTGluZShsaW5lcyk7aWYocmVhY3Rpb24pJCgnI2ludGFrZURpYWxvZ3VlJykudGV4dENvbnRlbnQ9cmVhY3Rpb247XG4iLAoiICAgICAgcmVhY3Rpb249cmFuZExpbmUobGluZXMpO2lmKHJlYWN0aW9uKXskKCcjaW50YWtlU3BlYWtlcicpLnRleHRDb250ZW50PWMubmFtZTskKCcjaW50YWtlRGlhbG9ndWUnKS50ZXh0Q29udGVudD1yZWFjdGlvbjthcHBlbmRDb252ZXJzYXRpb24oJ3Zpc2l0b3InLHJlYWN0aW9uKX07XG4iLAoiZGVjaXNpb24gcmVhY3Rpb24iKQoKcmVwbGFjZV9vbmNlKAoiICAgIGNvbnN0IGM9Y3VycmVudENhc2UoKTtjb25zdCBsaW5lPXJhbmRMaW5lKGMud2FzdGFMaW5lc3x8Yy5pZGxlTGluZXMpO2lmKGxpbmUpJCgnI2ludGFrZURpYWxvZ3VlJykudGV4dENvbnRlbnQ9bGluZTtcbiIsCiIgICAgY29uc3QgYz1jdXJyZW50Q2FzZSgpO2NvbnN0IGxpbmU9cmFuZExpbmUoYy53YXN0YUxpbmVzfHxjLmlkbGVMaW5lcyk7aWYobGluZSl7JCgnI2ludGFrZVNwZWFrZXInKS50ZXh0Q29udGVudD1jLm5hbWU7JCgnI2ludGFrZURpYWxvZ3VlJykudGV4dENvbnRlbnQ9bGluZTthcHBlbmRDb252ZXJzYXRpb24oJ3Zpc2l0b3InLGxpbmUpfTtcbiIsCiJ3YXN0YSBkaWFsb2d1ZSIpCgpwLndyaXRlX3RleHQocywgZW5jb2Rpbmc9InV0Zi04IikKCmlkeCA9IFBhdGgoImluZGV4Lmh0bWwiKQpoID0gaWR4LnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQppZiAicmVjZXB0aW9uLXYyLmpzP3Y9MS4xLjAiIG5vdCBpbiBoOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiaW5kZXggY2FjaGUtYnVzdCBhbmNob3Igbm90IGZvdW5kIikKaCA9IGgucmVwbGFjZSgicmVjZXB0aW9uLXYyLmpzP3Y9MS4xLjAiLCAicmVjZXB0aW9uLXYyLmpzP3Y9MS4xLjEiLCAxKQppZHgud3JpdGVfdGV4dChoLCBlbmNvZGluZz0idXRmLTgiKQoKanMgPSBwLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQpodG1sID0gaWR4LnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQpyZXF1aXJlZCA9IFsKICAgICJjb25zdCBWRVJTSU9OPSd2MS4xLjEnIiwKICAgICJpZD0nY29udmVyc2F0aW9uTG9nJyIsCiAgICAi2LPYrNmEINin2YTYrdmI2KfYsSIsCiAgICAiYXBwZW5kQ29udmVyc2F0aW9uKCdlbXBsb3llZScsaXRlbS5xKSIsCiAgICAiYXBwZW5kQ29udmVyc2F0aW9uKCd2aXNpdG9yJyxpdGVtLmEpIiwKICAgICJhc2tlZFF1ZXN0aW9uczpuZXcgU2V0KCkiLAogICAgImFuc3dlcmluZzpmYWxzZSIsCiAgICAi2LnYt9mG2Yog2KfZhNmF2YTZgSDZhNmIINiz2YXYrdiqLiIsCiAgICAi2KrZgdi22YTYjCDZh9iw2Kcg2KfZhNmF2YTZgS4iLAogICAgInNhbGFyeT0xMDA7ZGF5PTE7d2FzdGFIZWF0PTA7cmFuaz0xIiwKXQpmb3IgdG9rZW4gaW4gcmVxdWlyZWQ6CiAgICBpZiB0b2tlbiBub3QgaW4ganM6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgiTWlzc2luZyBjb252ZXJzYXRpb24gZmVhdHVyZTogIit0b2tlbikKaWYgInJlY2VwdGlvbi12Mi5qcz92PTEuMS4xIiBub3QgaW4gaHRtbDoKICAgIHJhaXNlIFN5c3RlbUV4aXQoIkluZGV4IGNhY2hlLWJ1c3Qgbm90IHVwZGF0ZWQiKQppZiBqcy5jb3VudCgicXVlc3Rpb25zOlsiKSA8IDEzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiVmlzaXRvciBxdWVzdGlvbiBzZXRzIG1pc3NpbmciKQpwcmludCgiQ29udmVyc2F0aW9uIGdhbWVwbGF5IHBhdGNoL2F1ZGl0IHBhc3NlZC4iKQo=' | base64 -d > /tmp/patch.py
+          python /tmp/patch.py
       - name: Validate JavaScript syntax
         run: |
           node --check reception-v2.js
-          python <<'PY'
+          python - <<'PY'
           from pathlib import Path
           import re
           html=Path('index.html').read_text(encoding='utf-8')
           m=re.search(r'<script>([\s\S]*?)</script>',html)
-          if not m:
-              raise SystemExit('No embedded JavaScript')
+          if not m: raise SystemExit('No embedded script')
           Path('/tmp/base-game.js').write_text(m.group(1),encoding='utf-8')
           PY
           node --check /tmp/base-game.js
-
-      - name: Validate conversation gameplay
-        run: |
-          python <<'PY'
-          from pathlib import Path
-          js=Path('reception-v2.js').read_text(encoding='utf-8')
-          html=Path('index.html').read_text(encoding='utf-8')
-          required=[
-            "const VERSION='v1.1.1'",
-            "id='conversationLog'",
-            "سجل الحوار",
-            "appendConversation('employee',item.q)",
-            "appendConversation('visitor',item.a)",
-            "askedQuestions:new Set()",
-            "answering:false",
-            "عطني الملف لو سمحت.",
-            "تفضل، هذا الملف.",
-            "salary=100;day=1;wastaHeat=0;rank=1"
-          ]
-          for token in required:
-              if token not in js:
-                  raise SystemExit('Missing conversation feature: '+token)
-          if 'reception-v2.js?v=1.1.1' not in html:
-              raise SystemExit('Index cache-bust not updated')
-          if js.count("questions:[") < 13:
-              raise SystemExit('Visitor question sets missing')
-          print('Conversation audit passed: employee asks, visitor answers, history persists per case.')
-          PY
-
       - name: Commit conversation gameplay
         run: |
           git config user.name "github-actions[bot]"
