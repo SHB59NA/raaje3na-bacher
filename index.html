@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>راجعنا باچر — Career v1.0.5</title>
+<title>راجعنا باچر — Career v1.0.6</title>
 <style>
 :root{
   --ink:#171b17;--bg:#0d120e;--paper:#eadfba;--paper2:#d5c99f;--wall:#87957c;
@@ -142,7 +142,7 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
     </div>
     <button class="btn amber" id="startCareerBtn">ابدأ الدوام</button>
     <button class="btn dark" id="resetBtn" style="margin-top:9px">مسح الحفظ — بداية من 100 د.ك</button>
-    <div class="version">v1.0.5 // VISITOR PERSONALITIES</div>
+    <div class="version">v1.0.6 // VISITOR PERSONALITIES</div>
   </div>
 </section>
 
@@ -405,7 +405,7 @@ function intakeDocHTML(c){let out=c.docs.map(d=>`<div class="docCard${/منته�
 function randLine(list){return list&&list.length?list[Math.floor(Math.random()*list.length)]:''}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 function startIntakeDay(){dayStartSalary=salary;dayScore=0;dayWrong=0;caseIndex=0;currentBatch=shuffle(intakePool).slice(0,6);show('intakeScreen');loadIntake()}
-function loadIntake(){busy=false;const c=currentBatch[caseIndex];updateBars();$('#intakeCaseTop').textContent=`CASE ${caseIndex+1}/6 • DAY ${day}`;$('#intakeClock').textContent=`${String(7+Math.floor((caseIndex*42+30)/60)).padStart(2,'0')}:${String((caseIndex*42+30)%60).padStart(2,'0')}`;$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=randLine(c.introLines)||c.greeting||'السلام عليكم.';$('#intakeAvatar').className='avatar '+(c.avatar||'');$('#intakeFileTitle').textContent=c.name+' — '+c.service;$('#intakeServiceTag').textContent=c.service;$('#intakeDocs').innerHTML=intakeDocHTML(c);$('#intakeRequirements').innerHTML=c.requirements.map(x=>'• '+esc(x)).join('<br>');$('#intakeMeta').innerHTML=`<b>${esc(c.name)}</b><br><span class="tag">الشخصية: ${esc(c.personality||'عادي')}</span><br><br>${esc(c.service)}<br>ملاحظة الملف: ${esc(c.note)}`;$('#intakeNotice').textContent='دقق المرفقات وقرر. اضغط على المراجع إذا تبي تسمع تعليق ثاني منه.';$('#wastaTag').classList.toggle('hidden',!c.wasta);$('#intakeWastaBox').classList.toggle('hidden',!c.wasta);$('#passWastaBtn').classList.toggle('hidden',!c.wasta);if(c.wasta)$('#intakeWastaBox').innerHTML='<b>واسطة موجودة:</b><br>'+esc(c.wasta);$('#intakeAvatar').title='اضغط لسماع تعليق ثاني';$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}
+function loadIntake(){busy=false;const c=currentBatch[caseIndex];updateBars();$('#intakeCaseTop').textContent=`CASE ${caseIndex+1}/6 • DAY ${day}`;$('#intakeClock').textContent=`${String(7+Math.floor((caseIndex*42+30)/60)).padStart(2,'0')}:${String((caseIndex*42+30)%60).padStart(2,'0')}`;$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=randLine(c.introLines)||c.greeting||'السلام عليكم.';$('#intakeAvatar').className='avatar '+(c.avatar||'');$('#intakeFileTitle').textContent=c.name+' — '+c.service;$('#intakeServiceTag').textContent=c.service;$('#intakeDocs').innerHTML=intakeDocHTML(c);$('#intakeRequirements').innerHTML=c.requirements.map(x=>'• '+esc(x)).join('<br>');$('#intakeMeta').innerHTML=`<b>${esc(c.name)}</b><br><span class="tag">الشخصية: ${esc(c.personality||'عادي')}</span><br><br>${esc(c.service)}<br>ملاحظة الملف: ${esc(c.note)}`;$('#intakeNotice').textContent='دقق المرفقات وقرر. اضغط على المراجع إذا تبي تسمع تعليق ثاني منه.';$('#wastaTag').classList.toggle('hidden',!c.wasta);$('#intakeWastaBox').classList.toggle('hidden',!c.wasta);$('#passWastaBtn').classList.toggle('hidden',!c.wasta);if(c.wasta)$('#intakeWastaBox').innerHTML='<b>واسطة موجودة:</b><br>'+esc(c.wasta);$('#intakeAvatar').title='اضغط لسماع تعليق ثاني';$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}}
 $('#approveRouteBtn').onclick=()=>{if(busy)return;openRouteModal()};
 function openRouteModal(){const options=Object.entries(ministries).map(([k,m])=>`<option value="${k}">${esc(m.name)}</option>`).join('');$('#modalBody').innerHTML=`<h2>اعتماد وتوجيه المعاملة</h2><div class="fieldRow"><b>الوزارة / الجهة</b><select id="routeMinistry">${options}</select></div><div class="fieldRow"><b>الدور</b><select id="routeFloor">${floorOptions.map(f=>`<option>${f}</option>`).join('')}</select></div><button class="btn green wide" id="confirmRoute">اختم معتمد ووجّه</button>`;$('#modal').classList.remove('hidden');$('#confirmRoute').onclick=()=>{const m=$('#routeMinistry').value,f=$('#routeFloor').value;$('#modal').classList.add('hidden');resolveIntakeApprove(m,f)}}
 function resolveIntakeApprove(m,f){const c=currentBatch[caseIndex];const ok=c.valid&&m===c.dest&&f===c.floor;let why=ok?`صح: الملف كامل وتوجيهه ${ministries[c.dest].name} — ${c.floor}.`:!c.valid?`المعاملة ناقصة/غير صالحة: ${c.reason}.`:`التوجيه غلط. الصحيح: ${ministries[c.dest].name} — ${c.floor}.`;finishDecision(ok,why,'intake','approve')}
