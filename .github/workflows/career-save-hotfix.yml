@@ -1,4 +1,4 @@
-name: Load and validate reception gameplay prototype v1.1.0
+name: Add and validate reception conversations v1.1.1
 on:
   push:
     paths:
@@ -11,73 +11,225 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Attach reception v2 gameplay
+      - name: Add real employee visitor conversations
         run: |
           python <<'PY'
           from pathlib import Path
-          p=Path('index.html')
+
+          p=Path('reception-v2.js')
           s=p.read_text(encoding='utf-8')
-          tag='<script src="reception-v2.js?v=1.1.0"></script>'
-          if tag not in s:
-              s=s.replace('</body>', tag+'\n</body>')
+
+          s=s.replace("const VERSION='v1.1.0';", "const VERSION='v1.1.1';", 1)
+
+          css_old="""      .v2Counter{font:900 10px monospace;color:#d5aa4f;margin-bottom:6px}\n"""
+          css_new="""      .v2Counter{font:900 10px monospace;color:#d5aa4f;margin-bottom:6px}
+      .v2Conversation{margin:7px 0;background:#121a15;border:3px solid #0d120e;padding:7px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+      .v2ConversationTitle{font-size:9px;color:#d5aa4f;font-weight:900;margin-bottom:2px}
+      .v2Turn{padding:6px 7px;border:2px solid #171b17;line-height:1.55;font-size:10px}
+      .v2Turn.employee{background:#d8cfaa;color:#171b17;margin-left:24px}
+      .v2Turn.visitor{background:#27352b;color:#f1e9ce;margin-right:24px}
+      .v2Who{display:block;font-size:8px;font-weight:900;margin-bottom:2px;opacity:.8}
+"""
+          if css_old not in s:
+              raise SystemExit('Conversation CSS anchor not found')
+          s=s.replace(css_old,css_new,1)
+
+          ui_old="""    const side=$('#intakeScreen .sidePanel');
+    if(!side||$('#casePhase'))return;
+"""
+          ui_new="""    const side=$('#intakeScreen .sidePanel');
+    const speech=$('#intakeScreen .speech');
+    if(speech&&!$('#conversationLog')){
+      const log=document.createElement('div');
+      log.id='conversationLog';log.className='v2Conversation';
+      log.innerHTML='<div class="v2ConversationTitle">سجل الحوار</div><div id="conversationTurns"></div>';
+      speech.insertAdjacentElement('afterend',log);
+    }
+    if(!side||$('#casePhase'))return;
+"""
+          if ui_old not in s:
+              raise SystemExit('Conversation UI anchor not found')
+          s=s.replace(ui_old,ui_new,1)
+
+          helper_anchor="""  function startState(c){
+"""
+          helpers="""  function renderConversation(){
+    const box=$('#conversationTurns');if(!box||!receptionState)return;
+    const visitor=currentCase()?currentCase().name:'المراجع';
+    box.innerHTML=receptionState.conversation.map(turn=>`<div class="v2Turn ${turn.role}"><span class="v2Who">${turn.role==='employee'?'الموظف':esc(visitor)}</span>${esc(turn.text)}</div>`).join('');
+    const log=$('#conversationLog');if(log)log.scrollTop=log.scrollHeight;
+  }
+
+  function appendConversation(role,text){
+    if(!receptionState||!text)return;
+    receptionState.conversation.push({role,text});
+    renderConversation();
+  }
+
+  function startState(c){
+"""
+          if helper_anchor not in s:
+              raise SystemExit('Conversation helper anchor not found')
+          s=s.replace(helper_anchor,helpers,1)
+
+          state_old="""    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false};
+"""
+          state_new="""    receptionState={fileReceived:false,questionsLeft:QUESTIONS_PER_CASE,extraDocs:[],inspected:new Set(),notes:[],systemChecked:false,markerUsed:false,conversation:[],askedQuestions:new Set(),answering:false};
+"""
+          if state_old not in s:
+              raise SystemExit('Reception state anchor not found')
+          s=s.replace(state_old,state_new,1)
+
+          render_old="""      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0;
+"""
+          render_new="""      const b=document.createElement('button');b.className='v2Question';b.textContent=item.q;b.disabled=receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i);
+"""
+          if render_old not in s:
+              raise SystemExit('Question render anchor not found')
+          s=s.replace(render_old,render_new,1)
+
+          ask_old="""  function askQuestion(i,button){
+    if(!receptionState||receptionState.questionsLeft<=0)return;
+    const item=currentProfile().questions[i];
+    receptionState.questionsLeft--;dayQuestions++;
+    $('#intakeDialogue').textContent=item.a;
+    button.disabled=true;
+    addNote('سألت: '+item.q);
+    if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
+    renderQuestions();
+    setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تستلم الملف بأي وقت.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
+  }
+"""
+          ask_new="""  function askQuestion(i,button){
+    if(!receptionState||receptionState.questionsLeft<=0||receptionState.answering||receptionState.askedQuestions.has(i))return;
+    const item=currentProfile().questions[i];
+    receptionState.questionsLeft--;dayQuestions++;receptionState.answering=true;receptionState.askedQuestions.add(i);
+    $('#intakeSpeaker').textContent='الموظف';
+    $('#intakeDialogue').textContent=item.q;
+    appendConversation('employee',item.q);
+    renderQuestions();
+    setNotice('المراجع قاعد يجاوب...');
+    setTimeout(()=>{
+      if(!receptionState)return;
+      $('#intakeSpeaker').textContent=currentCase().name;
+      $('#intakeDialogue').textContent=item.a;
+      appendConversation('visitor',item.a);
+      addNote('سؤال: '+item.q+' | الجواب: '+item.a);
+      if(item.revealDoc){receptionState.extraDocs.push(item.revealDoc);if(receptionState.fileReceived)renderDocs();}
+      receptionState.answering=false;
+      renderQuestions();
+      setNotice(receptionState.questionsLeft?`باقي ${receptionState.questionsLeft} سؤال. تقدر تكمل تسأله أو تستلم الملف.`:'خلصت أسئلتك. الحين اعتمد على الملف والأدوات.');
+    },420);
+  }
+"""
+          if ask_old not in s:
+              raise SystemExit('Question/answer function anchor not found')
+          s=s.replace(ask_old,ask_new,1)
+
+          receive_old="""    receptionState.fileReceived=true;
+    const c=currentCase();
+"""
+          receive_new="""    receptionState.fileReceived=true;
+    const c=currentCase();
+    appendConversation('employee','عطني الملف لو سمحت.');
+    appendConversation('visitor','تفضل، هذا الملف.');
+    $('#intakeSpeaker').textContent=c.name;
+    $('#intakeDialogue').textContent='تفضل، هذا الملف.';
+"""
+          if receive_old not in s:
+              raise SystemExit('File handover dialogue anchor not found')
+          s=s.replace(receive_old,receive_new,1)
+
+          intro_old="""    $('#intakeSpeaker').textContent=c.name;
+    $('#intakeDialogue').textContent=randLine(c.introLines)||'السلام عليكم.';
+"""
+          intro_new="""    $('#intakeSpeaker').textContent=c.name;
+    const intro=randLine(c.introLines)||'السلام عليكم.';
+    $('#intakeDialogue').textContent=intro;
+    appendConversation('visitor',intro);
+"""
+          if intro_old not in s:
+              raise SystemExit('Intro dialogue anchor not found')
+          s=s.replace(intro_old,intro_new,1)
+
+          avatar_old="""    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line};
+"""
+          avatar_new="""    $('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)}};
+"""
+          if avatar_old not in s:
+              raise SystemExit('Avatar dialogue anchor not found')
+          s=s.replace(avatar_old,avatar_new,1)
+
+          reaction_old="""      reaction=randLine(lines);if(reaction)$('#intakeDialogue').textContent=reaction;
+"""
+          reaction_new="""      reaction=randLine(lines);if(reaction){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=reaction;appendConversation('visitor',reaction)};
+"""
+          if reaction_old not in s:
+              raise SystemExit('Decision reaction anchor not found')
+          s=s.replace(reaction_old,reaction_new,1)
+
+          wasta_old="""    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line;
+"""
+          wasta_new="""    const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line){$('#intakeSpeaker').textContent=c.name;$('#intakeDialogue').textContent=line;appendConversation('visitor',line)};
+"""
+          if wasta_old not in s:
+              raise SystemExit('Wasta dialogue anchor not found')
+          s=s.replace(wasta_old,wasta_new,1)
+
           p.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          h=h.replace('reception-v2.js?v=1.1.0','reception-v2.js?v=1.1.1')
+          idx.write_text(h,encoding='utf-8')
           PY
 
-      - name: Validate embedded game JavaScript
+      - name: Validate JavaScript syntax
         run: |
+          node --check reception-v2.js
           python <<'PY'
           from pathlib import Path
           import re
           html=Path('index.html').read_text(encoding='utf-8')
           m=re.search(r'<script>([\s\S]*?)</script>',html)
           if not m:
-              raise SystemExit('No embedded game script found')
+              raise SystemExit('No embedded JavaScript')
           Path('/tmp/base-game.js').write_text(m.group(1),encoding='utf-8')
           PY
           node --check /tmp/base-game.js
 
-      - name: Validate reception v2 JavaScript
-        run: node --check reception-v2.js
-
-      - name: Validate reception v2 features
+      - name: Validate conversation gameplay
         run: |
           python <<'PY'
           from pathlib import Path
-          html=Path('index.html').read_text(encoding='utf-8')
           js=Path('reception-v2.js').read_text(encoding='utf-8')
-          required_html=['<script src="reception-v2.js?v=1.1.0"></script>','id="intakeScreen"','id="approveRouteBtn"','id="rejectReasonBtn"']
-          required_js=[
-            "const QUESTIONS_PER_CASE=3",
-            "salary=100;day=1;wastaHeat=0;rank=1",
-            "استلم الملف من المراجع",
-            "الكمبيوتر",
-            "التلفون",
-            "دفتر التعاميم",
-            "ملاحظة / تناقض",
-            "نوع المعاملة",
-            "resolveIntakeApproveV2",
-            "القرار الصح +5",
-            "الغلط -10",
-            "-50 دينار",
-            "الغريب مو معناته مرفوض"
+          html=Path('index.html').read_text(encoding='utf-8')
+          required=[
+            "const VERSION='v1.1.1'",
+            "id='conversationLog'",
+            "سجل الحوار",
+            "appendConversation('employee',item.q)",
+            "appendConversation('visitor',item.a)",
+            "askedQuestions:new Set()",
+            "answering:false",
+            "عطني الملف لو سمحت.",
+            "تفضل، هذا الملف.",
+            "salary=100;day=1;wastaHeat=0;rank=1"
           ]
-          for token in required_html:
-              if token not in html:
-                  raise SystemExit('Missing HTML hook: '+token)
-          for token in required_js:
+          for token in required:
               if token not in js:
-                  raise SystemExit('Missing gameplay feature: '+token)
-          if js.count("minDay:") < 13:
-              raise SystemExit('Expected profiles for 13 reception visitors')
+                  raise SystemExit('Missing conversation feature: '+token)
+          if 'reception-v2.js?v=1.1.1' not in html:
+              raise SystemExit('Index cache-bust not updated')
           if js.count("questions:[") < 13:
-              raise SystemExit('Expected question sets for 13 reception visitors')
-          print('Reception v1.1.0 gameplay feature audit passed.')
+              raise SystemExit('Visitor question sets missing')
+          print('Conversation audit passed: employee asks, visitor answers, history persists per case.')
           PY
 
-      - name: Commit prototype loader
+      - name: Commit conversation gameplay
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet || git commit -m "Load enhanced reception gameplay prototype"
+          git add reception-v2.js index.html
+          git diff --cached --quiet || git commit -m "Make reception questions real conversations"
           git push
