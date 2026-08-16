@@ -1,4 +1,4 @@
-name: Repair and validate reception build
+name: Lock and validate reception-only build
 on:
   push:
     paths:
@@ -6,26 +6,88 @@ on:
 permissions:
   contents: write
 jobs:
-  repair:
+  reception-only:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair missing intake brace
+
+      - name: Lock game to reception only
         run: |
           python <<'PY'
           from pathlib import Path
           import re
+
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          old = "$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}\n$('#approveRouteBtn')"
-          new = "$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}}\n$('#approveRouteBtn')"
-          if old not in s:
-              raise SystemExit('Expected broken intake pattern not found')
-          s = s.replace(old, new, 1)
-          s = s.replace('Career v1.0.5</title>', 'Career v1.0.6</title>')
-          s = s.replace('v1.0.5 // VISITOR PERSONALITIES', 'v1.0.6 // VISITOR PERSONALITIES')
+
+          s = s.replace('<title>راجعنا باچر — Career v1.0.6</title>', '<title>راجعنا باچر — Reception v1.0.7</title>')
+          s = s.replace('<div class="subtitle">CAREER MODE</div>', '<div class="subtitle">RECEPTION DESK</div>')
+          s = s.replace('<span>NEXT</span><b id="titleNext">200 KD</b>', '<span>DAY</span><b id="titleDay">DAY 1</b>')
+          s = s.replace('v1.0.6 // VISITOR PERSONALITIES', 'v1.0.7 // RECEPTION COMPLETE')
+
+          old_screens = "const screens=['titleScreen','briefScreen','intakeScreen','promotionScreen','ministrySelectScreen','coworkerSelectScreen','ministryScreen','supervisorScreen','dayEndScreen','fireScreen'];\nfunction show(id){screens.forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}\nfunction rankNext(){return null}"
+          new_screens = "const screens=['titleScreen','briefScreen','intakeScreen','promotionScreen','ministrySelectScreen','coworkerSelectScreen','ministryScreen','supervisorScreen','dayEndScreen','fireScreen'];\nconst receptionScreens=new Set(['titleScreen','briefScreen','intakeScreen','dayEndScreen','fireScreen']);\nfunction show(id){if(!receptionScreens.has(id))id='titleScreen';screens.forEach(x=>{const el=$('#'+x);if(el)el.classList.add('hidden')});const target=$('#'+id);if(target)target.classList.remove('hidden')}\nfunction rankNext(){return null}"
+          if old_screens not in s:
+              raise SystemExit('Screen router pattern not found')
+          s = s.replace(old_screens, new_screens, 1)
+
+          s, n = re.subn(
+              r"function updateTitle\(\)\{[\s\S]*?\n\}\nfunction updateBars\(\)\{[\s\S]*?\n\}",
+              """function updateTitle(){
+ $('#titleRank').textContent='موظف استقبال';
+ $('#titleSalary').textContent=salary+' KD';
+ if($('#titleDay'))$('#titleDay').textContent='DAY '+day;
+ $('#titleHeat').textContent=wastaHeat+'%';
+ if($('#step1'))$('#step1').classList.add('unlocked');
+ $('#startCareerBtn').textContent='ابدأ دوام الاستقبال';
+}
+function updateBars(){
+ if($('#intakeSalary'))$('#intakeSalary').textContent='SALARY '+salary+' KD';
+ if($('#intakeHeat'))$('#intakeHeat').textContent='WASTA '+wastaHeat+'%';
+}""",
+              s,
+              count=1
+          )
+          if n != 1:
+              raise SystemExit('Could not replace title/bar functions')
+
+          s, n = re.subn(
+              r"function finishDay\(stage\)\{[^\n]*\}\n\$\('#nextDayBtn'\)\.onclick=[^\n]*\n\$\('#dayBackTitleBtn'\)\.onclick=[^\n]*",
+              """function finishDay(stage){
+ const gain=salary-dayStartSalary;
+ $('#dayEndTitle').textContent='نهاية دوام الاستقبال — اليوم '+day;
+ $('#dayStats').innerHTML=`<div class=\"infoCard\"><b>${dayScore}</b>قرارات صحيحة</div><div class=\"infoCard\"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class=\"infoCard\"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;
+ $('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>خلص دوام الاستقبال. تقدر تبدأ اليوم الياي أو ترجع للقائمة.`;
+ $('#nextDayBtn').dataset.stage='intake';
+ show('dayEndScreen');
+}
+$('#nextDayBtn').onclick=()=>{day++;save();startIntakeDay()};
+$('#dayBackTitleBtn').onclick=()=>{day++;save();updateTitle();show('titleScreen')};""",
+              s,
+              count=1
+          )
+          if n != 1:
+              raise SystemExit('Could not replace end-of-day navigation')
+
+          s, n = re.subn(
+              r"function showBriefAndStart\(\)\{[^\n]*\}\n\$\('#briefGoBtn'\)\.onclick=[^\n]*",
+              """function showBriefAndStart(){
+ const title='تعميم رقم 01 — الاستقبال والتوجيه';
+ const html=`<div class=\"grid3\"><div class=\"infoCard\"><b>إذا الملف كامل</b>اضغط «معتمد»، وبعدها اختار الجهة والدور الصح. التوجيه جزء من القرار.</div><div class=\"infoCard\"><b>إذا الملف ناقص أو غلط</b>اضغط «رفض» واختار السبب الحقيقي. «ناقص شي» بروحها ما تمشي.</div><div class=\"infoCard\"><b>الواسطة</b>تقدر تمشيها. إذا ما انصدت تمر بدون +5. إذا انصدت: -50 د.ك. وكل واسطة تعدي ترفع احتمال التفتيش.</div></div>`;
+ $('#briefTitle').textContent=title;
+ $('#briefContent').innerHTML=html;
+ show('briefScreen');
+}
+$('#briefGoBtn').onclick=()=>startIntakeDay();""",
+              s,
+              count=1
+          )
+          if n != 1:
+              raise SystemExit('Could not replace reception brief routing')
+
           p.write_text(s, encoding='utf-8')
           PY
+
       - name: Validate JavaScript syntax
         run: |
           python <<'PY'
@@ -38,10 +100,80 @@ jobs:
           Path('/tmp/game.js').write_text(m.group(1), encoding='utf-8')
           PY
           node --check /tmp/game.js
-      - name: Commit repair
+
+      - name: Validate reception data and game loop
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path('index.html').read_text(encoding='utf-8')
+          js = re.search(r'<script>([\s\S]*?)</script>', html).group(1)
+
+          required_html = [
+              'RECEPTION DESK',
+              'id="titleDay"',
+              'v1.0.7 // RECEPTION COMPLETE',
+              'id="startCareerBtn"',
+              'id="briefGoBtn"',
+              'id="approveRouteBtn"',
+              'id="rejectReasonBtn"',
+              'id="nextDayBtn"',
+              'id="fireResetBtn"'
+          ]
+          for token in required_html:
+              if token not in html:
+                  raise SystemExit(f'Missing reception UI token: {token}')
+
+          if '<div class="career-step hidden" id="step2">' not in html or '<div class="career-step hidden" id="step3">' not in html:
+              raise SystemExit('Future career stages are not hidden')
+
+          required_js = [
+              "const receptionScreens=new Set(['titleScreen','briefScreen','intakeScreen','dayEndScreen','fireScreen'])",
+              "$('#startCareerBtn').onclick=()=>showBriefAndStart();",
+              "$('#briefGoBtn').onclick=()=>startIntakeDay();",
+              "$('#nextDayBtn').onclick=()=>{day++;save();startIntakeDay()};",
+              "let rank=1; localStorage.setItem(SAVE.rank,'1');"
+          ]
+          for token in required_js:
+              if token not in js:
+                  raise SystemExit(f'Missing reception routing lock: {token}')
+
+          def grab(pattern, name):
+              m = re.search(pattern, js)
+              if not m:
+                  raise SystemExit(f'Could not extract {name}')
+              return m.group(1)
+
+          ministries = grab(r"const ministries=(\{[\s\S]*?\});\nconst floorOptions", 'ministries')
+          floors = grab(r"const floorOptions=(\[[\s\S]*?\]);\nconst rejectReasons", 'floorOptions')
+          reasons = grab(r"const rejectReasons=(\[[\s\S]*?\]);\n\nconst intakePool", 'rejectReasons')
+          pool = grab(r"const intakePool=(\[[\s\S]*?\]);\n\nfunction intakeDocHTML", 'intakePool')
+
+          test_js = f"""
+          const ministries={ministries};
+          const floorOptions={floors};
+          const rejectReasons={reasons};
+          const intakePool={pool};
+          if (intakePool.length < 13) throw new Error('Expected at least 13 reception visitors');
+          for (const c of intakePool) {{
+            for (const k of ['name','personality','service','requirements','docs','introLines','approveLines','rejectLines']) {{
+              if (!c[k] || (Array.isArray(c[k]) && c[k].length===0)) throw new Error(c.name+': missing '+k);
+            }}
+            if (!ministries[c.dest]) throw new Error(c.name+': invalid destination '+c.dest);
+            if (!floorOptions.includes(c.floor)) throw new Error(c.name+': invalid floor '+c.floor);
+            if (!c.valid && !rejectReasons.includes(c.reason)) throw new Error(c.name+': invalid reject reason '+c.reason);
+          }}
+          console.log('Reception visitors validated:', intakePool.length);
+          """
+          Path('/tmp/reception-data.js').write_text(test_js, encoding='utf-8')
+          PY
+          node /tmp/reception-data.js
+
+      - name: Commit reception-only audit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Fix reception start button JavaScript error"
+          git diff --cached --quiet || git commit -m "Lock complete reception-only gameplay loop"
           git push
