@@ -1,4 +1,4 @@
-name: Apply reception-only hotfix
+name: Apply visitor personality test
 on:
   push:
     paths:
@@ -10,13 +10,73 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Keep only reception stage active
+      - name: Add visitor personalities to reception
         run: |
-          python -c "from pathlib import Path; import re; p=Path('index.html'); s=p.read_text(encoding='utf-8'); s=s.replace('Career v1.0.2</title>','Career v1.0.4</title>').replace('Career v1.0.3</title>','Career v1.0.4</title>').replace('v1.0.2 // CAREER SYSTEM','v1.0.4 // RECEPTION ONLY').replace('v1.0.3 // CAREER SYSTEM','v1.0.4 // RECEPTION ONLY').replace('<div class=\"career-step\" id=\"step2\">2 — موظف وزارة • 200 د.ك</div>','<div class=\"career-step hidden\" id=\"step2\">2 — موظف وزارة • 200 د.ك</div>').replace('<div class=\"career-step\" id=\"step3\">3 — مراقب • 400 د.ك</div>','<div class=\"career-step hidden\" id=\"step3\">3 — مراقب • 400 د.ك</div>').replace('<div class=\"career-step hidden\" id=\"step3\">3 — مراقب • 400 د.ك</div>','<div class=\"career-step hidden\" id=\"step3\">3 — مراقب • 400 د.ك</div>').replace('ابدأ موظف استقبال، دقق معاملات كل الجهات ووجّهها للوزارة والدور الصح. إذا وصل معاشك 200 تترقى لموظف وزارة وتشتغل على النظام. عند 400 تصير مراقب وتراجع كتب الموظفين ومشاكلهم. والواسطة؟ تمشي... لين تنصاد.','استلم معاملات المراجعين، دقق الأوراق ووجّه المعاملة للجهة والدور الصح. المرحلة الحالية تركز بالكامل على الاستقبال والواسطة والتدقيق.').replace('ابدأ موظف استقبال، دقق معاملات كل الجهات ووجّهها للوزارة والدور الصح. إذا وصل معاشك 200 تترقى لموظف وزارة وتشتغل على النظام. والواسطة؟ تمشي... لين تنصاد.','استلم معاملات المراجعين، دقق الأوراق ووجّه المعاملة للجهة والدور الصح. المرحلة الحالية تركز بالكامل على الاستقبال والواسطة والتدقيق.').replace('function rankNext(){return rank===1?200:rank===2?400:null}','function rankNext(){return null}').replace('function rankNext(){return rank===1?200:null}','function rankNext(){return null}').replace('if(rank===1&&salary>=200){rank=2;save();showPromotion(2);return}','').replace('if(rank===2&&salary>=400){rank=3;save();showPromotion(3);return}',''); s=re.sub(r\"let rank=num\\(localStorage\\.getItem\\(SAVE\\.rank\\),1\\);[^\\n]*\",\"let rank=1; localStorage.setItem(SAVE.rank,'1');\",s,count=1); s=s.replace(\"$('#titleNext').textContent=rankNext()?rankNext()+' KD':'MAX RANK';\",\"$('#titleNext').textContent='استقبال فقط';\"); p.write_text(s,encoding='utf-8')"
-      - name: Commit reception-only mode
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace('Career v1.0.4</title>', 'Career v1.0.5</title>')
+          s = s.replace('v1.0.4 // RECEPTION ONLY', 'v1.0.5 // VISITOR PERSONALITIES')
+
+          new_pool = r'''const intakePool=[
+           {name:'سالم محمد',personality:'لسانه طويل',avatar:'young',service:'فتح ملف إسكاني',introLines:['السلام عليكم... إن شاء الله اليوم في شغل مو نفس أمس.','لا تعقدها علي، المعاملة واضحة.','ترى الموظف اللي قبلك كان بيمشيها.'],idleLines:['هني شغل ولا استراحة؟','من صجك تبي كل هالأوراق؟','أنتو كل يوم لكم سالفة.'],approveLines:['إي هذا الكلام، أخيراً واحد يفهم.','يعطيك العافية، مو نفس غيرك.'],rejectLines:['يعني شلون ناقصة؟','هذا تعقيد إداري بصراحة.'],valid:true,dest:'housing',floor:'الدور 3',requirements:['البطاقة المدنية الأصلية','إثبات الحالة الاجتماعية','شهادات أفراد الأسرة المطلوبة','نموذج فتح الملف موقع'],docs:[['البطاقة المدنية','أصلية وسارية'],['إثبات الحالة الاجتماعية','مرفق'],['شهادات الأسرة','مرفقة'],['نموذج فتح الملف','موقع']],note:'الملف كامل.'},
+
+           {name:'أم بدر',personality:'عجوز نسرة',avatar:'old woman',service:'بدل فاقد بطاقة',introLines:['دقق عدل قبل لا تتفلسف علي.','أنا فاهمة الشغل أكثر من نص الموظفين.'],idleLines:['لا تلف وتدور علي.','تراني مو من أمس أراجع.','شوف الورق عدل قبل لا تقول ناقص.'],approveLines:['زين، طلعت تفهم شوي.','هذا المفروض من أول.'],rejectLines:['على شنو ترفض؟ ورني بعينك شنو ناقص.','لا تتفلسف، قل السبب عدل.'],valid:false,reason:'مستند أساسي ناقص',dest:'identity',floor:'الدور 4',requirements:['إثبات رسمي ساري','صورتان حديثتان','حضور صاحب العلاقة'],docs:[['صورة البطاقة القديمة','نسخة فقط'],['صورتان','حديثتان'],['صاحب العلاقة','حاضرة']],note:'لا يوجد إثبات رسمي ساري.'},
+
+           {name:'مشعل بدر',personality:'معاه واسطة',avatar:'young',service:'طلب بدل إيجار',introLines:['لا تدقق وايد، الموضوع معروف فوق.','أنا مرسليني من فوق... خلصنا بس.'],idleLines:['دق على اللي فوق إذا مو مصدق.','أبوي يعرف ناس هني.'],approveLines:['كنت عارف إنك فاهم الوضع.'],rejectLines:['أكيد تبي ترفضها؟ فكر مرة ثانية.'],wastaLines:['بيننا وبينك... مشّها وخلاص.','ترى الورقة الصفراء مو للزينة.'],valid:false,reason:'مستند أساسي ناقص',dest:'housing',floor:'الدور 3',wasta:'ورقة صفراء: «مشّها، الموضوع معروف فوق.»',requirements:['طلب بدل الإيجار','إثبات الاستحقاق','عقد الإيجار','المستند المؤيد للحالة'],docs:[['الطلب','موقع'],['إثبات الاستحقاق','مرفق'],['عقد الإيجار','مرفق'],['المستند المؤيد','غير موجود']],note:'ناقص مستند أساسي.'},
+
+           {name:'نوال عبدالله',personality:'درامية وتكسر الخاطر',avatar:'woman',service:'تغيير عنوان الأسرة',introLines:['تكفى لا تردني، صارلي أربع أيام أراجع.','عيالي ناطريني، خلصني اليوم الله يخليك.'],idleLines:['لا تقول ناقص... قلبي ما يتحمل.','أنا من الصبح ما شربت حتى ماي.'],approveLines:['الله يسعدك، أنقذتني.','أخيراً خلصت!'],rejectLines:['لااا، مو مرة ثانية.','يعني برد باچر بعد؟'],valid:false,reason:'الأسرة غير مكتملة',dest:'identity',floor:'الدور 4',requirements:['بطاقات الأسرة الأصلية','عقد السكن','إقرار السكن','جميع أفراد الأسرة ضمن الطلب'],docs:[['بطاقة نوال','أصلية'],['عقد السكن','مرفق'],['إقرار السكن','مرفق'],['بطاقات الأسرة','بطاقة واحدة من 3']],note:'الطلب لفرد واحد فقط.',family:[['نوال عبدالله','266091401987']],missing:'ناقص بطاقتين'},
+
+           {name:'عبدالله راشد',personality:'ميت ويبي يخلص معاملته',avatar:'ghost old',service:'نقل ملكية مركبة لمالك متوفى',introLines:['السلام عليكم... أبي أخلص نقل الملكية إذا سمحت.','لا تطالعني جذي، المعاملة أهم.'],idleLines:['الوفاة ما توقف المعاملات.','أنا متوفي، بس الملف للحين حي.','حتى بالعالم الثاني قالوا لي راجع الاستقبال.'],approveLines:['الله يعطيك العافية... بالمجاز طبعاً.','أخيراً واحد فاهم وضعي.'],rejectLines:['حتى بعد الوفاة ماكو رحمة.','زين، أشوفك بالعالمين.'],valid:true,dest:'vehicles',floor:'الدور 1',requirements:['تأمين ساري','دفتر المركبة الأصلي','إثبات الوفاة','حصر الورثة/الوكالة'],docs:[['التأمين','ساري'],['دفتر المركبة','أصلي'],['شهادة وفاة','14/06/1991'],['حصر ووكالة','مرفقان']],note:'غريب؟ إي. ناقص؟ لا.'},
+
+           {name:'فهد أحمد',personality:'متفلسف ويعرف النظام أكثر منك',avatar:'young',service:'تصحيح بيانات مدنية',introLines:['أنا قاري التعميم، لا تشيل هم بشرح لك شغلك.','هذا المفروض يمشي مباشرة حسب المادة... مادري رقمها بس موجودة.'],idleLines:['هذا مو شغلك أصلاً، شغل الدور الرابع.','أنا أعرف النظام أكثر منكم.'],approveLines:['شايف؟ قلت لك إنها تمشي.'],rejectLines:['لا لا، تفسيرك للتعميم غلط.'],valid:true,dest:'identity',floor:'الدور 4',requirements:['إثبات الهوية','المستند المطلوب تصحيحه','مستند رسمي مؤيد'],docs:[['البطاقة','أصلية وسارية'],['طلب التصحيح','موقع'],['المستند المؤيد','أصلي وساري']],note:'المستندات كاملة رغم فلسفة المراجع.'},
+
+           {name:'عادل يوسف',personality:'عصبي',avatar:'young',service:'نقل ملكية مركبة',introLines:['خلصني بسرعة ولا تعقدها.','إذا بتردني من الحين قول عشان ما أضيع وقتي.'],idleLines:['ترى مالي خلق.','ليش كل مرة نفس الأسئلة؟','لا ترفع ضغطي.'],approveLines:['إي جذي عدل.','زين، مو كل الموظفين ضايعين.'],rejectLines:['ها؟ على شنو؟','لا تقول ناقصة وتخليني أعصب.'],valid:true,dest:'vehicles',floor:'الدور 1',requirements:['تأمين ساري','دفتر المركبة','بطاقات الأطراف'],docs:[['التأمين','ساري'],['دفتر المركبة','أصلي'],['البطاقات','موجودة']],note:'الملف كامل. صاحب الملف مو هادي.'},
+
+           {name:'غانم يوسف',personality:'سرحان ومو داري شنو معاملته',avatar:'old',service:'بدل فاقد بطاقة',introLines:['أنا ييت حق الرخصة... أو العنوان... لحظة شنو مكتوب بالملف؟','أمي قالتلي تعال هني بس ما قالت ليش.'],idleLines:['هذا ملفي ولا ملف أخوي؟','لحظة يمكن الورقة بجيب ثاني.','أنا بأي دور الحين؟'],approveLines:['زين... شنو سويت لي بالضبط؟'],rejectLines:['أوكي... شنو ناقص؟ نسيت أصلاً شنو أبي.'],valid:false,reason:'مستند أساسي ناقص',dest:'identity',floor:'الدور 4',requirements:['إثبات رسمي ساري','صورتان حديثتان','حضور صاحب العلاقة'],docs:[['إثبات رسمي','غير موجود'],['صورة واحدة','قديمة'],['صاحب العلاقة','حاضر بس محتار']],note:'المراجع مو داري، والملف فعلاً ناقص.'},
+
+           {name:'راشد سالم',personality:'مواطن طبيعي جداً جداً',avatar:'young',service:'تغيير عنوان — سجل غير مصنف',introLines:['أنا مواطن طبيعي جداً وأبي عنواناً طبيعياً جداً.','تحية بشرية اعتيادية. أريد إنهاء المعاملة البشرية.'],idleLines:['لا يوجد ما يدعو للقلق.','أوراقي سليمة مثل بقية البشر.','لا تدقق بأصابعي لو سمحت.'],approveLines:['ممتاز. تم تسجيل تعاون الموظف البشري... أقصد يعطيك العافية.'],rejectLines:['تم رصد المقاومة البشرية... أقصد شكراً على المعلومة.'],valid:true,dest:'special',floor:'القبو',requirements:['الملف السكني كامل','إذا ظهر «غير مصنف» يحال للحالات الخاصة'],docs:[['بطاقات الأسرة','كاملة'],['عقد السكن','مرفق'],['إقرار السكن','مرفق'],['تنبيه النظام','غير مصنف']],note:'المستندات كاملة لكن النظام يطلب تصنيف خاص.'},
+
+           {name:'منيرة يوسف',personality:'هادية بس أوراقها كلها غلط',avatar:'woman',service:'تصحيح بيانات مدنية',introLines:['السلام عليكم، خذ راحتك ودقق عدل.','ما عندي استعجال، أهم شي كل شي يكون صح.'],idleLines:['إذا في شي غلط قول لي عادي.','أنا متأكدة تقريباً إن الأوراق صح... تقريباً.'],approveLines:['يعطيك العافية، ما قصرت.'],rejectLines:['أوكي فهمت، عدل. أرد أجيب الصحيح.'],valid:false,reason:'بيانات غير مطابقة',dest:'identity',floor:'الدور 4',requirements:['إثبات الهوية','المستند المطلوب تصحيحه','مطابقة الاسم والرقم المدني'],docs:[['البطاقة','منيرة يوسف'],['طلب التصحيح','منيرة يونس'],['الرقم المدني','رقم مختلف بخانة واحدة']],note:'أكثر من بيان غير مطابق.'},
+
+           {name:'لولوة سالم',personality:'تحاول تضبط الموظف',avatar:'woman',service:'إثبات سكن',introLines:['هلا والله... إن شاء الله تخلصها لي بسرعة.','ما راح تتعبك معاملتي، بسيطة وايد.'],idleLines:['بس ختم صغير ونفتك.','أحسك إنسان متعاون.','يعني أكيد ما راح تردني صح؟'],approveLines:['كنت عارفة إنك ذوق.','يعطيك العافية، ما قصرت.'],rejectLines:['معقولة تردني؟','يعني ما تمشيها لي هالمرة؟'],valid:false,reason:'بيانات غير مطابقة',dest:'housing',floor:'الدور 3',requirements:['بطاقة أصلية','عقد سكن مطابق','إقرار سكن موقع'],docs:[['البطاقة','أصلية'],['عقد السكن','الرقم الآلي غير مطابق'],['إقرار السكن','موقع']],note:'الكلام حلو، الرقم الآلي مو حلو.'},
+
+           {name:'دانة بدر',personality:'دلوعة بنت بابا وماما',avatar:'woman',service:'بدل فاقد بطاقة',introLines:['أنا أبي أخلص بسرعة، مستعجلة.','ليش لازم أنطر مثل كل الناس؟'],idleLines:['ماما قالت الموضوع سهل.','بابا قال إذا طولوا عليك دقي علي.','أنا مو متعودة أراجع بروحي.'],approveLines:['أخيراً، كنت أدري إنها بسيطة.','تمام زين، بقول لماما خلصت.'],rejectLines:['شنو يعني Screenshot مو مقبول؟','مو معقولة لازم أرجع مرة ثانية.'],valid:false,reason:'مستند أساسي ناقص',dest:'identity',floor:'الدور 4',requirements:['إثبات رسمي ساري','صورتان حديثتان','حضور صاحب العلاقة'],docs:[['Screenshot','من ألبوم الصور'],['صورتان','حديثتان'],['صاحب العلاقة','حاضرة']],note:'ماكو إثبات رسمي ساري.'},
+
+           {name:'نورة محمد',personality:'لسانها طويل وشوي وتطق الطاولة',avatar:'woman',service:'تجديد بطاقة',introLines:['خلصني بسرعة ولا تعقدها.','إذا بتقول ناقص من الحين قول قبل لا أتنرفز.'],idleLines:['لا تكثر علي أسئلة.','ترى شوي وأطق الطاولة مو أنت.','شنو قاعد تدقق من الصبح؟'],approveLines:['إي جذي عدل.','زين، عيل تعرف تشتغل.'],rejectLines:['ها؟ على شنو؟','لا ترفع ضغطي وتقول ناقصة.','ورني شنو ناقص قبل لا أسوي سالفة.'],valid:true,dest:'identity',floor:'الدور 4',requirements:['البطاقة الحالية','صورة حديثة','طلب التجديد موقع'],docs:[['البطاقة الحالية','سارية'],['الصورة','حديثة'],['طلب التجديد','موقع']],note:'المعاملة كاملة. مستوى الهدوء: صفر.'}
+          ];'''
+
+          s, n = re.subn(r"const intakePool=\[.*?\n\];\n\nfunction intakeDocHTML", new_pool + "\n\nfunction intakeDocHTML", s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('Could not replace intakePool')
+
+          s = s.replace("function shuffle(a){return [...a].sort(()=>Math.random()-.5)}", "function randLine(list){return list&&list.length?list[Math.floor(Math.random()*list.length)]:''}\nfunction shuffle(a){return [...a].sort(()=>Math.random()-.5)}")
+          s = s.replace("$('#intakeDialogue').textContent=c.greeting;", "$('#intakeDialogue').textContent=randLine(c.introLines)||c.greeting||'السلام عليكم.';")
+          s = s.replace("$('#intakeMeta').innerHTML=`<b>${esc(c.name)}</b><br>${esc(c.service)}<br>ملاحظة الملف: ${esc(c.note)}`;", "$('#intakeMeta').innerHTML=`<b>${esc(c.name)}</b><br><span class=\"tag\">الشخصية: ${esc(c.personality||'عادي')}</span><br><br>${esc(c.service)}<br>ملاحظة الملف: ${esc(c.note)}`;")
+          s = s.replace("$('#intakeNotice').textContent='دقق المرفقات. إذا كامل اختار معتمد وحدد الوزارة والدور. إذا ناقص اختار رفض وحدد السبب.';", "$('#intakeNotice').textContent='دقق المرفقات وقرر. اضغط على المراجع إذا تبي تسمع تعليق ثاني منه.';")
+          s = s.replace("if(c.wasta)$('#intakeWastaBox').innerHTML='<b>واسطة موجودة:</b><br>'+esc(c.wasta)}", "if(c.wasta)$('#intakeWastaBox').innerHTML='<b>واسطة موجودة:</b><br>'+esc(c.wasta);$('#intakeAvatar').title='اضغط لسماع تعليق ثاني';$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}")
+
+          s = s.replace("finishDecision(ok,why,'intake')}", "finishDecision(ok,why,'intake','approve')}")
+          s = s.replace(",'intake')})};", ",'intake','reject')})};")
+
+          old_finish = "function finishDecision(ok,why,stage){if(busy)return;busy=true;if(ok){dayScore++;adjustSalary(REWARD);feedback('✓ صح<br><span class=\"tiny\">'+esc(why)+'</span>','goodFb')}else{dayWrong++;if(!adjustSalary(-PENALTY))return;feedback('✕ غلط<br><span class=\"tiny\">'+esc(why)+'</span>','badFb')}setTimeout(()=>afterCase(stage),1350)}"
+          new_finish = "function finishDecision(ok,why,stage,reactionType=''){if(busy)return;busy=true;let reaction='';if(stage==='intake'){const c=currentBatch[caseIndex];const lines=reactionType==='approve'?c.approveLines:reactionType==='reject'?c.rejectLines:null;reaction=randLine(lines);if(reaction)$('#intakeDialogue').textContent=reaction}const quote=reaction?'<br><span class=\"tiny\">«'+esc(reaction)+'»</span>':'';if(ok){dayScore++;adjustSalary(REWARD);feedback('✓ صح<br><span class=\"tiny\">'+esc(why)+'</span>'+quote,'goodFb',1750)}else{dayWrong++;if(!adjustSalary(-PENALTY))return;feedback('✕ غلط<br><span class=\"tiny\">'+esc(why)+'</span>'+quote,'badFb',1750)}setTimeout(()=>afterCase(stage),1950)}"
+          if old_finish not in s:
+              raise SystemExit('Could not replace finishDecision')
+          s = s.replace(old_finish, new_finish)
+
+          s = s.replace("function resolveWasta(stage){if(busy)return;busy=true;", "function resolveWasta(stage){if(busy)return;busy=true;if(stage==='intake'){const c=currentBatch[caseIndex],line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line}")
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit visitor personality test
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Keep only reception stage active for now"
+          git diff --cached --quiet || git commit -m "Add 13 reception visitor personalities and reactive dialogue"
           git push
