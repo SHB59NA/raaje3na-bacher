@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>راجعنا باچر — Career v1.0.6</title>
+<title>راجعنا باچر — Reception v1.0.7</title>
 <style>
 :root{
   --ink:#171b17;--bg:#0d120e;--paper:#eadfba;--paper2:#d5c99f;--wall:#87957c;
@@ -132,17 +132,17 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
   <div class="title-copy">
     <div class="agency">الهيئة العامة لشؤون المواطنين والحالات غير الاعتيادية</div>
     <h1>راجعنا باچر</h1>
-    <div class="subtitle">CAREER MODE</div>
+    <div class="subtitle">RECEPTION DESK</div>
     <div class="desc">استلم معاملات المراجعين، دقق الأوراق ووجّه المعاملة للجهة والدور الصح. المرحلة الحالية تركز بالكامل على الاستقبال والواسطة والتدقيق.</div>
     <div class="savegrid">
       <span>RANK</span><b id="titleRank">موظف استقبال</b>
       <span>SALARY</span><b id="titleSalary">100 KD</b>
-      <span>NEXT</span><b id="titleNext">200 KD</b>
+      <span>DAY</span><b id="titleDay">DAY 1</b>
       <span>WASTA HEAT</span><b id="titleHeat">0%</b>
     </div>
     <button class="btn amber" id="startCareerBtn">ابدأ الدوام</button>
     <button class="btn dark" id="resetBtn" style="margin-top:9px">مسح الحفظ — بداية من 100 د.ك</button>
-    <div class="version">v1.0.6 // VISITOR PERSONALITIES</div>
+    <div class="version">v1.0.7 // RECEPTION COMPLETE</div>
   </div>
 </section>
 
@@ -347,17 +347,20 @@ function save(){
  localStorage.setItem(SAVE.heat,String(wastaHeat));localStorage.setItem(SAVE.day,String(day));
 }
 const screens=['titleScreen','briefScreen','intakeScreen','promotionScreen','ministrySelectScreen','coworkerSelectScreen','ministryScreen','supervisorScreen','dayEndScreen','fireScreen'];
-function show(id){screens.forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
+const receptionScreens=new Set(['titleScreen','briefScreen','intakeScreen','dayEndScreen','fireScreen']);
+function show(id){if(!receptionScreens.has(id))id='titleScreen';screens.forEach(x=>{const el=$('#'+x);if(el)el.classList.add('hidden')});const target=$('#'+id);if(target)target.classList.remove('hidden')}
 function rankNext(){return null}
 function updateTitle(){
- $('#titleRank').textContent=rankNames[rank];$('#titleSalary').textContent=salary+' KD';$('#titleNext').textContent='استقبال فقط';
+ $('#titleRank').textContent='موظف استقبال';
+ $('#titleSalary').textContent=salary+' KD';
+ if($('#titleDay'))$('#titleDay').textContent='DAY '+day;
  $('#titleHeat').textContent=wastaHeat+'%';
- $('#step1').classList.toggle('unlocked',rank>=1);$('#step2').classList.toggle('unlocked',rank>=2);$('#step3').classList.toggle('unlocked',rank>=3);
- $('#startCareerBtn').textContent=rank===1?'ابدأ دوام الاستقبال':rank===2?'ادخل الوزارة':'افتح مكتب المراقب';
+ if($('#step1'))$('#step1').classList.add('unlocked');
+ $('#startCareerBtn').textContent='ابدأ دوام الاستقبال';
 }
 function updateBars(){
- ['intakeSalary','ministrySalary','supervisorSalary'].forEach(id=>{if($('#'+id))$('#'+id).textContent='SALARY '+salary+' KD'});
- ['intakeHeat','ministryHeat','supervisorHeat'].forEach(id=>{if($('#'+id))$('#'+id).textContent='WASTA '+wastaHeat+'%'});
+ if($('#intakeSalary'))$('#intakeSalary').textContent='SALARY '+salary+' KD';
+ if($('#intakeHeat'))$('#intakeHeat').textContent='WASTA '+wastaHeat+'%';
 }
 function resetAll(){Object.values(SAVE).forEach(k=>localStorage.removeItem(k));location.reload()}
 $('#resetBtn').onclick=()=>{if(confirm('تمسح كل التقدم وترد من 100 د.ك؟'))resetAll()};$('#fireResetBtn').onclick=resetAll;
@@ -486,15 +489,28 @@ function feedback(msg,type='goodFb',ms=1150){const f=$('#feedback');f.className=
 function finishDecision(ok,why,stage,reactionType=''){if(busy)return;busy=true;let reaction='';if(stage==='intake'){const c=currentBatch[caseIndex];const lines=reactionType==='approve'?c.approveLines:reactionType==='reject'?c.rejectLines:null;reaction=randLine(lines);if(reaction)$('#intakeDialogue').textContent=reaction}const quote=reaction?'<br><span class="tiny">«'+esc(reaction)+'»</span>':'';if(ok){dayScore++;adjustSalary(REWARD);feedback('✓ صح<br><span class="tiny">'+esc(why)+'</span>'+quote,'goodFb',1750)}else{dayWrong++;if(!adjustSalary(-PENALTY))return;feedback('✕ غلط<br><span class="tiny">'+esc(why)+'</span>'+quote,'badFb',1750)}setTimeout(()=>afterCase(stage),1950)}
 function resolveWasta(stage){if(busy)return;busy=true;if(stage==='intake'){const c=currentBatch[caseIndex],line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line}const chance=Math.min(80,25+wastaHeat);const caught=Math.random()*100<chance;if(caught){wastaHeat=0;save();feedback(`التفتيش مسك المعاملة.<br><b>-50 د.ك</b><br><span class="tiny">نسبة الانكشاف كانت ${chance}%</span>`,'badFb',1500);if(!adjustSalary(-WASTA_PENALTY))return;dayWrong++}else{wastaHeat=Math.min(55,wastaHeat+10);save();feedback(`عدّت هالمرة.<br><span class="tiny">ما أخذت +5، وريحة الواسطة صارت ${wastaHeat}%.</span>`,'wastaFb',1500)}setTimeout(()=>afterCase(stage),1650)}
 function afterCase(stage){if(salary<=0)return;caseIndex++;if(caseIndex>=currentBatch.length){finishDay(stage);return}if(stage==='intake')loadIntake();else if(stage==='ministry')loadMinistryTask();else loadSupervisor()}
-function finishDay(stage){const gain=salary-dayStartSalary;$('#dayEndTitle').textContent='نهاية الدوام — اليوم '+day;$('#dayStats').innerHTML=`<div class="infoCard"><b>${dayScore}</b>قرارات صحيحة</div><div class="infoCard"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class="infoCard"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;$('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>${rankNext()?`باقي <b>${Math.max(0,rankNext()-salary)} د.ك</b> على الترقية الياية.`:'وصلت أعلى رتبة حالياً.'}`;$('#nextDayBtn').dataset.stage=stage;show('dayEndScreen')}
-$('#nextDayBtn').onclick=()=>{day++;save();if(rank===1)startIntakeDay();else if(rank===2)startMinistryDay();else startSupervisorDay()};
+function finishDay(stage){
+ const gain=salary-dayStartSalary;
+ $('#dayEndTitle').textContent='نهاية دوام الاستقبال — اليوم '+day;
+ $('#dayStats').innerHTML=`<div class="infoCard"><b>${dayScore}</b>قرارات صحيحة</div><div class="infoCard"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class="infoCard"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;
+ $('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>خلص دوام الاستقبال. تقدر تبدأ اليوم الياي أو ترجع للقائمة.`;
+ $('#nextDayBtn').dataset.stage='intake';
+ show('dayEndScreen');
+}
+$('#nextDayBtn').onclick=()=>{day++;save();startIntakeDay()};
 $('#dayBackTitleBtn').onclick=()=>{day++;save();updateTitle();show('titleScreen')};
 
 function showPromotion(toRank){$('#promotionTitle').textContent=toRank===2?'ترقية: موظف وزارة':'ترقية: مراقب';$('#promotionText').innerHTML=toRank===2?`وصل معاشك <b>200 د.ك</b>.<br><br>المسؤول يطالع ملفك ويقول:<br><b>«مبروك... مادري شلون، بس ترقيتي. اختار وزارة وروح تورّط هناك.»</b><br><br>الحين شغلك مو بس تدقيق أوراق. راح تدخل الرقم المدني بالنظام وتنفذ الإجراء بنفسك.`:`وصل معاشك <b>400 د.ك</b>.<br><br>المسؤول: <b>«خلاص، الحين إنت مراقب. يعني إذا الموظفين غلطوا... الغلط صار يوصل عندك رسمي.»</b><br><br>من الحين تراجع كتب رسمية، نقل، إجازات، دورات، تأخير ومشاكل موظفين.`;$('#promotionContinueBtn').dataset.rank=toRank;show('promotionScreen')}
 $('#promotionContinueBtn').onclick=()=>{const r=Number($('#promotionContinueBtn').dataset.rank);if(r===2){tempMinistry=selectedMinistry||'';renderMinistryCards();show('ministrySelectScreen')}else{day++;save();startSupervisorDay()}};
 
-function showBriefAndStart(){let title,html;if(rank===1){title='تعميم رقم 01 — الاستقبال والتوجيه';html=`<div class="grid3"><div class="infoCard"><b>إذا الملف كامل</b>اضغط «معتمد»، وبعدها اختار الجهة والدور الصح. التوجيه جزء من القرار.</div><div class="infoCard"><b>إذا الملف ناقص أو غلط</b>اضغط «رفض» واختار السبب الحقيقي. «ناقص شي» بروحها ما تمشي.</div><div class="infoCard"><b>الواسطة</b>تقدر تمشيها. إذا ما انصدت تمر بدون +5. إذا انصدت: -50 د.ك. وكل واسطة تعدي ترفع احتمال التفتيش.</div></div>`}else if(rank===2){title='تعميم الوزارة — لا تعتمد من الذاكرة';html=`<div class="grid3"><div class="infoCard"><b>1. اكتب المدني</b>خذ الرقم من المعاملة واكتبه بالنظام.</div><div class="infoCard"><b>2. اقرأ النتيجة</b>كل وزارة لها إجراءات مختلفة.</div><div class="infoCard"><b>3. نفّذ</b>القرار الصح +5، الغلط -10، والواسطة للحين ممكن تدمر معاشك.</div></div><p style="line-height:1.8">وزارتك الحالية: <b>${selectedMinistry?esc(ministries[selectedMinistry].name):'ما اخترت للحين'}</b></p>`}else{title='تعميم المراقبين — الورق صار يجيك من داخل الدوام';html=`<div class="grid3"><div class="infoCard"><b>كتب الموظفين</b>نقل، إجازة، دورة، تكليف واستئذان.</div><div class="infoCard"><b>ملف الموظف</b>الرصيد، الموافقات، التأخير، الشاغر والمرفقات.</div><div class="infoCard"><b>قرارك</b>اعتماد / رفض / إرجاع للاستكمال / إحالة للمدير.</div></div>`}$('#briefTitle').textContent=title;$('#briefContent').innerHTML=html;show('briefScreen')}
-$('#briefGoBtn').onclick=()=>{if(rank===1)startIntakeDay();else if(rank===2)startMinistryDay();else startSupervisorDay()};
+function showBriefAndStart(){
+ const title='تعميم رقم 01 — الاستقبال والتوجيه';
+ const html=`<div class="grid3"><div class="infoCard"><b>إذا الملف كامل</b>اضغط «معتمد»، وبعدها اختار الجهة والدور الصح. التوجيه جزء من القرار.</div><div class="infoCard"><b>إذا الملف ناقص أو غلط</b>اضغط «رفض» واختار السبب الحقيقي. «ناقص شي» بروحها ما تمشي.</div><div class="infoCard"><b>الواسطة</b>تقدر تمشيها. إذا ما انصدت تمر بدون +5. إذا انصدت: -50 د.ك. وكل واسطة تعدي ترفع احتمال التفتيش.</div></div>`;
+ $('#briefTitle').textContent=title;
+ $('#briefContent').innerHTML=html;
+ show('briefScreen');
+}
+$('#briefGoBtn').onclick=()=>startIntakeDay();
 $('#startCareerBtn').onclick=()=>showBriefAndStart();
 
 updateTitle();save();
