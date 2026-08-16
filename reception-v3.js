@@ -1,8 +1,8 @@
-// راجعنا باچر — Inspection Desk Gameplay Layer v1.2.0
+// راجعنا باچر — Inspection Desk Gameplay Layer v1.2.1
 // Adds a tactile inspection-station flow while keeping the game's own setting and rules.
 
 (function(){
-  const VERSION='v1.2.0';
+  const VERSION='v1.2.1';
   let caseStartedAt=Date.now();
   let timerHandle=null;
   let decisionPending=false;
@@ -195,9 +195,10 @@
     if(e.target.closest?.('#approveRouteBtn,#rejectReasonBtn'))setRail('decision');
   });
 
-  // Mutation observer keeps the HUD in sync with the existing prototype without duplicating its rules.
-  const observer=new MutationObserver(()=>syncInspectionHud());
-  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','disabled']});
+  // Keep HUD updates event-driven. A document-wide MutationObserver can
+  // create feedback loops with the graphics layer on mobile browsers.
+  document.addEventListener('click',()=>setTimeout(syncInspectionHud,0));
+  window.addEventListener('resize',()=>requestAnimationFrame(syncInspectionHud));
 
   injectInspectionUI();
 
