@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>راجعنا باچر — Career v1.0.1</title>
+<title>راجعنا باچر — Career v1.0.2</title>
 <style>
 :root{
   --ink:#171b17;--bg:#0d120e;--paper:#eadfba;--paper2:#d5c99f;--wall:#87957c;
@@ -142,7 +142,7 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
     </div>
     <button class="btn amber" id="startCareerBtn">ابدأ الدوام</button>
     <button class="btn dark" id="resetBtn" style="margin-top:9px">مسح الحفظ — بداية من 100 د.ك</button>
-    <div class="version">v1.0.1 // CAREER SYSTEM</div>
+    <div class="version">v1.0.2 // CAREER SYSTEM</div>
   </div>
 </section>
 
@@ -325,13 +325,13 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const SAVE={
- salary:'raaje3na_career_salary_v1',rank:'raaje3na_career_rank_v1',ministry:'raaje3na_career_ministry_v1',
- coworker:'raaje3na_career_coworker_v1',heat:'raaje3na_career_wasta_heat_v1',day:'raaje3na_career_day_v1'
+ salary:'raaje3na_career_salary_v2',rank:'raaje3na_career_rank_v2',ministry:'raaje3na_career_ministry_v2',
+ coworker:'raaje3na_career_coworker_v2',heat:'raaje3na_career_wasta_heat_v2',day:'raaje3na_career_day_v2'
 };
 const START_SALARY=100, REWARD=5, PENALTY=10, WASTA_PENALTY=50;
 const rankNames={1:'موظف استقبال',2:'موظف وزارة',3:'مراقب'};
 let salary=num(localStorage.getItem(SAVE.salary),START_SALARY);
-let rank=num(localStorage.getItem(SAVE.rank),1);
+let rank=num(localStorage.getItem(SAVE.rank),1); if((rank===2&&salary<200)||(rank===3&&salary<400)||![1,2,3].includes(rank)) rank=1;
 let selectedMinistry=localStorage.getItem(SAVE.ministry)||'';
 let selectedCoworker=localStorage.getItem(SAVE.coworker)||'';
 let wastaHeat=num(localStorage.getItem(SAVE.heat),0);
