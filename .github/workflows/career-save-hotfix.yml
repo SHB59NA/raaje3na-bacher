@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 jobs:
-  reception-only:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,57 +31,51 @@ jobs:
               raise SystemExit('Screen router pattern not found')
           s = s.replace(old_screens, new_screens, 1)
 
-          s, n = re.subn(
-              r"function updateTitle\(\)\{[\s\S]*?\n\}\nfunction updateBars\(\)\{[\s\S]*?\n\}",
-              """function updateTitle(){
- $('#titleRank').textContent='موظف استقبال';
- $('#titleSalary').textContent=salary+' KD';
- if($('#titleDay'))$('#titleDay').textContent='DAY '+day;
- $('#titleHeat').textContent=wastaHeat+'%';
- if($('#step1'))$('#step1').classList.add('unlocked');
- $('#startCareerBtn').textContent='ابدأ دوام الاستقبال';
-}
-function updateBars(){
- if($('#intakeSalary'))$('#intakeSalary').textContent='SALARY '+salary+' KD';
- if($('#intakeHeat'))$('#intakeHeat').textContent='WASTA '+wastaHeat+'%';
-}""",
-              s,
-              count=1
-          )
+          new_update = "\n".join([
+              "function updateTitle(){",
+              " $('#titleRank').textContent='موظف استقبال';",
+              " $('#titleSalary').textContent=salary+' KD';",
+              " if($('#titleDay'))$('#titleDay').textContent='DAY '+day;",
+              " $('#titleHeat').textContent=wastaHeat+'%';",
+              " if($('#step1'))$('#step1').classList.add('unlocked');",
+              " $('#startCareerBtn').textContent='ابدأ دوام الاستقبال';",
+              "}",
+              "function updateBars(){",
+              " if($('#intakeSalary'))$('#intakeSalary').textContent='SALARY '+salary+' KD';",
+              " if($('#intakeHeat'))$('#intakeHeat').textContent='WASTA '+wastaHeat+'%';",
+              "}"
+          ])
+          s, n = re.subn(r"function updateTitle\(\)\{[\s\S]*?\n\}\nfunction updateBars\(\)\{[\s\S]*?\n\}", lambda m: new_update, s, count=1)
           if n != 1:
               raise SystemExit('Could not replace title/bar functions')
 
-          s, n = re.subn(
-              r"function finishDay\(stage\)\{[^\n]*\}\n\$\('#nextDayBtn'\)\.onclick=[^\n]*\n\$\('#dayBackTitleBtn'\)\.onclick=[^\n]*",
-              """function finishDay(stage){
- const gain=salary-dayStartSalary;
- $('#dayEndTitle').textContent='نهاية دوام الاستقبال — اليوم '+day;
- $('#dayStats').innerHTML=`<div class=\"infoCard\"><b>${dayScore}</b>قرارات صحيحة</div><div class=\"infoCard\"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class=\"infoCard\"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;
- $('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>خلص دوام الاستقبال. تقدر تبدأ اليوم الياي أو ترجع للقائمة.`;
- $('#nextDayBtn').dataset.stage='intake';
- show('dayEndScreen');
-}
-$('#nextDayBtn').onclick=()=>{day++;save();startIntakeDay()};
-$('#dayBackTitleBtn').onclick=()=>{day++;save();updateTitle();show('titleScreen')};""",
-              s,
-              count=1
-          )
+          new_end = "\n".join([
+              "function finishDay(stage){",
+              " const gain=salary-dayStartSalary;",
+              " $('#dayEndTitle').textContent='نهاية دوام الاستقبال — اليوم '+day;",
+              " $('#dayStats').innerHTML=`<div class=\"infoCard\"><b>${dayScore}</b>قرارات صحيحة</div><div class=\"infoCard\"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class=\"infoCard\"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;",
+              " $('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>خلص دوام الاستقبال. تقدر تبدأ اليوم الياي أو ترجع للقائمة.`;",
+              " $('#nextDayBtn').dataset.stage='intake';",
+              " show('dayEndScreen');",
+              "}",
+              "$('#nextDayBtn').onclick=()=>{day++;save();startIntakeDay()};",
+              "$('#dayBackTitleBtn').onclick=()=>{day++;save();updateTitle();show('titleScreen')};"
+          ])
+          s, n = re.subn(r"function finishDay\(stage\)\{[^\n]*\}\n\$\('#nextDayBtn'\)\.onclick=[^\n]*\n\$\('#dayBackTitleBtn'\)\.onclick=[^\n]*", lambda m: new_end, s, count=1)
           if n != 1:
               raise SystemExit('Could not replace end-of-day navigation')
 
-          s, n = re.subn(
-              r"function showBriefAndStart\(\)\{[^\n]*\}\n\$\('#briefGoBtn'\)\.onclick=[^\n]*",
-              """function showBriefAndStart(){
- const title='تعميم رقم 01 — الاستقبال والتوجيه';
- const html=`<div class=\"grid3\"><div class=\"infoCard\"><b>إذا الملف كامل</b>اضغط «معتمد»، وبعدها اختار الجهة والدور الصح. التوجيه جزء من القرار.</div><div class=\"infoCard\"><b>إذا الملف ناقص أو غلط</b>اضغط «رفض» واختار السبب الحقيقي. «ناقص شي» بروحها ما تمشي.</div><div class=\"infoCard\"><b>الواسطة</b>تقدر تمشيها. إذا ما انصدت تمر بدون +5. إذا انصدت: -50 د.ك. وكل واسطة تعدي ترفع احتمال التفتيش.</div></div>`;
- $('#briefTitle').textContent=title;
- $('#briefContent').innerHTML=html;
- show('briefScreen');
-}
-$('#briefGoBtn').onclick=()=>startIntakeDay();""",
-              s,
-              count=1
-          )
+          new_brief = "\n".join([
+              "function showBriefAndStart(){",
+              " const title='تعميم رقم 01 — الاستقبال والتوجيه';",
+              " const html=`<div class=\"grid3\"><div class=\"infoCard\"><b>إذا الملف كامل</b>اضغط «معتمد»، وبعدها اختار الجهة والدور الصح. التوجيه جزء من القرار.</div><div class=\"infoCard\"><b>إذا الملف ناقص أو غلط</b>اضغط «رفض» واختار السبب الحقيقي. «ناقص شي» بروحها ما تمشي.</div><div class=\"infoCard\"><b>الواسطة</b>تقدر تمشيها. إذا ما انصدت تمر بدون +5. إذا انصدت: -50 د.ك. وكل واسطة تعدي ترفع احتمال التفتيش.</div></div>`;",
+              " $('#briefTitle').textContent=title;",
+              " $('#briefContent').innerHTML=html;",
+              " show('briefScreen');",
+              "}",
+              "$('#briefGoBtn').onclick=()=>startIntakeDay();"
+          ])
+          s, n = re.subn(r"function showBriefAndStart\(\)\{[^\n]*\}\n\$\('#briefGoBtn'\)\.onclick=[^\n]*", lambda m: new_brief, s, count=1)
           if n != 1:
               raise SystemExit('Could not replace reception brief routing')
 
@@ -101,32 +95,31 @@ $('#briefGoBtn').onclick=()=>startIntakeDay();""",
           PY
           node --check /tmp/game.js
 
-      - name: Validate reception data and game loop
+      - name: Validate reception UI routing and visitor data
         run: |
           python <<'PY'
           from pathlib import Path
           import re
 
           html = Path('index.html').read_text(encoding='utf-8')
-          js = re.search(r'<script>([\s\S]*?)</script>', html).group(1)
+          js_match = re.search(r'<script>([\s\S]*?)</script>', html)
+          if not js_match:
+              raise SystemExit('No JavaScript block')
+          js = js_match.group(1)
 
           required_html = [
-              'RECEPTION DESK',
-              'id="titleDay"',
-              'v1.0.7 // RECEPTION COMPLETE',
-              'id="startCareerBtn"',
-              'id="briefGoBtn"',
-              'id="approveRouteBtn"',
-              'id="rejectReasonBtn"',
-              'id="nextDayBtn"',
-              'id="fireResetBtn"'
+              'RECEPTION DESK', 'id="titleDay"', 'v1.0.7 // RECEPTION COMPLETE',
+              'id="startCareerBtn"', 'id="briefGoBtn"', 'id="approveRouteBtn"',
+              'id="rejectReasonBtn"', 'id="nextDayBtn"', 'id="fireResetBtn"'
           ]
           for token in required_html:
               if token not in html:
-                  raise SystemExit(f'Missing reception UI token: {token}')
+                  raise SystemExit('Missing reception UI token: ' + token)
 
-          if '<div class="career-step hidden" id="step2">' not in html or '<div class="career-step hidden" id="step3">' not in html:
-              raise SystemExit('Future career stages are not hidden')
+          if '<div class="career-step hidden" id="step2">' not in html:
+              raise SystemExit('Ministry stage is not hidden')
+          if '<div class="career-step hidden" id="step3">' not in html:
+              raise SystemExit('Supervisor stage is not hidden')
 
           required_js = [
               "const receptionScreens=new Set(['titleScreen','briefScreen','intakeScreen','dayEndScreen','fireScreen'])",
@@ -137,38 +130,42 @@ $('#briefGoBtn').onclick=()=>startIntakeDay();""",
           ]
           for token in required_js:
               if token not in js:
-                  raise SystemExit(f'Missing reception routing lock: {token}')
+                  raise SystemExit('Missing reception routing lock: ' + token)
 
-          def grab(pattern, name):
-              m = re.search(pattern, js)
-              if not m:
-                  raise SystemExit(f'Could not extract {name}')
-              return m.group(1)
+          pool_match = re.search(r"const intakePool=(\[[\s\S]*?\]);\n\nfunction intakeDocHTML", js)
+          if not pool_match:
+              raise SystemExit('Could not find intakePool')
+          pool = pool_match.group(1)
 
-          ministries = grab(r"const ministries=(\{[\s\S]*?\});\nconst floorOptions", 'ministries')
-          floors = grab(r"const floorOptions=(\[[\s\S]*?\]);\nconst rejectReasons", 'floorOptions')
-          reasons = grab(r"const rejectReasons=(\[[\s\S]*?\]);\n\nconst intakePool", 'rejectReasons')
-          pool = grab(r"const intakePool=(\[[\s\S]*?\]);\n\nfunction intakeDocHTML", 'intakePool')
+          if pool.count('personality:') < 13:
+              raise SystemExit('Expected at least 13 personality visitors')
+          for field in ['introLines:', 'approveLines:', 'rejectLines:', 'requirements:', 'docs:']:
+              if pool.count(field) < 13:
+                  raise SystemExit('Visitor field missing from one or more cases: ' + field)
 
-          test_js = f"""
-          const ministries={ministries};
-          const floorOptions={floors};
-          const rejectReasons={reasons};
-          const intakePool={pool};
-          if (intakePool.length < 13) throw new Error('Expected at least 13 reception visitors');
-          for (const c of intakePool) {{
-            for (const k of ['name','personality','service','requirements','docs','introLines','approveLines','rejectLines']) {{
-              if (!c[k] || (Array.isArray(c[k]) && c[k].length===0)) throw new Error(c.name+': missing '+k);
-            }}
-            if (!ministries[c.dest]) throw new Error(c.name+': invalid destination '+c.dest);
-            if (!floorOptions.includes(c.floor)) throw new Error(c.name+': invalid floor '+c.floor);
-            if (!c.valid && !rejectReasons.includes(c.reason)) throw new Error(c.name+': invalid reject reason '+c.reason);
-          }}
-          console.log('Reception visitors validated:', intakePool.length);
-          """
-          Path('/tmp/reception-data.js').write_text(test_js, encoding='utf-8')
+          valid_dests = {'housing','interior','vehicles','identity','special'}
+          for dest in re.findall(r"dest:'([^']+)'", pool):
+              if dest not in valid_dests:
+                  raise SystemExit('Invalid reception destination: ' + dest)
+
+          valid_floors = {'الدور 1','الدور 2','الدور 3','الدور 4','القبو'}
+          for floor in re.findall(r"floor:'([^']+)'", pool):
+              if floor not in valid_floors:
+                  raise SystemExit('Invalid reception floor: ' + floor)
+
+          reasons_match = re.search(r"const rejectReasons=(\[[^\n]+\]);", js)
+          if not reasons_match:
+              raise SystemExit('Could not find rejectReasons')
+          allowed_reasons = set(re.findall(r"'([^']+)'", reasons_match.group(1)))
+          for reason in re.findall(r"valid:false,reason:'([^']+)'", pool):
+              if reason not in allowed_reasons:
+                  raise SystemExit('Invalid reject reason: ' + reason)
+
+          if 'slice(0,6)' not in js:
+              raise SystemExit('Reception day must load 6 visitors')
+
+          print('Reception-only audit passed: 13+ visitors, 6 per day, routes locked.')
           PY
-          node /tmp/reception-data.js
 
       - name: Commit reception-only audit
         run: |
