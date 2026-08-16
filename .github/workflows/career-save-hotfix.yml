@@ -1,4 +1,4 @@
-name: Polish reception conversations v1.1.1
+name: Load inspection desk gameplay v1.2.0
 on:
   push:
     paths:
@@ -10,21 +10,68 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix conversation copy
+
+      - name: Attach inspection desk layer
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('reception-v2.js')
+          p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          s=s.replace('// راجعنا باچر — Reception Gameplay Prototype v1.1.0','// راجعنا باچر — Reception Gameplay Prototype v1.1.1',1)
-          s=s.replace("appendConversation('visitor','تفضل، هذد الملف.');","appendConversation('visitor','تفضل، هذا الملف.');",1)
+          tag='<script src="reception-v3.js?v=1.2.0"></script>'
+          if tag not in s:
+              anchor='<script src="reception-v2.js?v=1.1.1"></script>'
+              if anchor not in s:
+                  raise SystemExit('reception v2 loader not found')
+              s=s.replace(anchor,anchor+'\n'+tag,1)
           p.write_text(s,encoding='utf-8')
           PY
+
+      - name: Validate JavaScript
+        run: |
           node --check reception-v2.js
-      - name: Commit copy fix
+          node --check reception-v3.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script>([\s\S]*?)</script>',html)
+          if not m: raise SystemExit('embedded JS missing')
+          Path('/tmp/base.js').write_text(m.group(1),encoding='utf-8')
+          required=[
+            'reception-v2.js?v=1.1.1',
+            'reception-v3.js?v=1.2.0'
+          ]
+          for x in required:
+              if x not in html: raise SystemExit('missing loader '+x)
+          PY
+          node --check /tmp/base.js
+
+      - name: Validate inspection flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          js=Path('reception-v3.js').read_text(encoding='utf-8')
+          required=[
+            "const VERSION='v1.2.0'",
+            'inspectionHud',
+            'inspectionRail',
+            'documentViewer',
+            'نادي المراجع اللي بعده',
+            'أنهِ دوام الاستقبال',
+            "afterCase=function()",
+            'goNextVisitor',
+            'openDocumentFromCard',
+            'INSPECTION DESK'
+          ]
+          for token in required:
+              if token not in js: raise SystemExit('missing inspection feature: '+token)
+          print('Inspection desk v1.2.0 validation passed.')
+          PY
+
+      - name: Commit loader
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reception-v2.js
-          git diff --cached --quiet || git commit -m "Polish reception conversation copy"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Load inspection desk gameplay v1.2.0"
           git push
