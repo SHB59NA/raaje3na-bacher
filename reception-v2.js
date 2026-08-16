@@ -1,4 +1,4 @@
-// راجعنا باچر — Reception Gameplay Prototype v1.1.0
+// راجعنا باچر — Reception Gameplay Prototype v1.1.1
 // Gameplay-first prototype. Graphics remain placeholders until the loop is approved.
 
 (function(){
@@ -341,7 +341,7 @@
     receptionState.fileReceived=true;
     const c=currentCase();
     appendConversation('employee','عطني الملف لو سمحت.');
-    appendConversation('visitor','تفضل، هذد الملف.');
+    appendConversation('visitor','تفضل، هذا الملف.');
     $('#intakeSpeaker').textContent=c.name;
     $('#intakeDialogue').textContent='تفضل، هذا الملف.';
     $('#handoverBtn').disabled=true;
