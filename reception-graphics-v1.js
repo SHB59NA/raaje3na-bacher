@@ -1,85 +1,83 @@
-// راجعنا باچر — Reception Graphics Prototype v1.3.0
-// Uses user-created prototype assets as an interactive desk layer.
+// راجعنا باچر — Reception Graphics Prototype v1.3.1
+// Lightweight mobile-safe graphics layer using the user's prototype assets.
 (function(){
-  const GFX_VERSION='v1.3.0';
+  const GFX_VERSION='v1.3.1';
   const A='assets/prototype/';
   const q=s=>document.querySelector(s);
   const qa=s=>[...document.querySelectorAll(s)];
-  let lastCaseLabel='';
+  let lastCase='';
 
   function addStyle(){
-    if(q('#receptionGraphicsStyle'))return;
+    if(q('#receptionGraphicsStyle')) return;
     const st=document.createElement('style');
     st.id='receptionGraphicsStyle';
     st.textContent=`
       #intakeScreen .scene{
-        min-height:690px;
-        background-image:linear-gradient(rgba(17,20,15,.04),rgba(17,20,15,.10)),url('${A}reception_scene_bg.webp')!important;
-        background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;
-        image-rendering:auto;isolation:isolate;
+        position:relative;
+        min-height:650px;
+        overflow:hidden;
+        background:#b9ae8c url('${A}reception_scene_bg.webp') center/cover no-repeat!important;
       }
-      #intakeScreen .scene:after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,244,190,.06),transparent 32%,rgba(26,19,12,.12));animation:gfxFluor 8s infinite steps(1)}
       #intakeScreen .sceneFluor,#intakeScreen .wallPoster{display:none!important}
-      #intakeScreen .visitorZone{position:relative;z-index:2;min-height:270px;padding-top:26px;pointer-events:none}
-      #intakeScreen #intakeAvatar{filter:drop-shadow(0 9px 5px rgba(0,0,0,.34));transform-origin:50% 100%;transition:filter .18s ease}
-      #intakeScreen #intakeAvatar.gfxArrive{animation:gfxArrive .42s cubic-bezier(.2,.9,.25,1)}
-      #intakeScreen #intakeAvatar.gfxIdle{animation:gfxIdle 3.4s ease-in-out infinite}
-      #intakeScreen .speech{z-index:31!important;background:rgba(239,228,189,.94)!important;backdrop-filter:blur(2px)}
-      #intakeScreen .v2Conversation{z-index:31!important;background:rgba(17,25,20,.92)!important;backdrop-filter:blur(2px)}
-      #intakeScreen .deskArea{position:relative;z-index:24!important;margin:8px 172px 16px!important;min-height:205px!important;background:rgba(70,45,27,.82)!important;border-color:#2b1b10!important;box-shadow:inset 0 0 0 3px rgba(194,145,81,.28),7px 8px 0 rgba(0,0,0,.22)!important;backdrop-filter:blur(1px)}
-      #intakeScreen .fileHeader{background:rgba(29,34,26,.90)!important}
-      #intakeScreen .docsGrid{position:relative;z-index:26;max-height:145px;overflow:auto;padding:4px}
-      #intakeScreen .docCard{background:rgba(242,230,192,.97)!important}
-      #deskPrompt{z-index:34!important;bottom:3px!important}
+      #intakeScreen .visitorZone{position:relative;z-index:3;min-height:250px;padding-top:18px;pointer-events:none}
+      #intakeScreen #intakeAvatar{filter:drop-shadow(0 8px 4px rgba(0,0,0,.28));transform-origin:50% 100%}
+      #intakeScreen #intakeAvatar.gfxArrive{animation:gfxArrive .35s ease-out}
+      #intakeScreen #intakeAvatar.gfxIdle{animation:gfxIdle 3.2s ease-in-out infinite}
+      #intakeScreen .speech,#intakeScreen .v2Conversation{position:relative;z-index:35!important}
+      #intakeScreen .deskArea{
+        position:relative;z-index:25!important;
+        margin:8px 155px 16px!important;
+        min-height:195px!important;
+        background:rgba(71,46,29,.88)!important;
+        border-color:#2c1c12!important;
+      }
+      #intakeScreen .fileHeader{background:rgba(29,34,26,.94)!important}
+      #intakeScreen .docsGrid{position:relative;z-index:27;max-height:140px;overflow:auto;padding:4px}
+      #intakeScreen .docCard{background:rgba(242,230,192,.98)!important}
 
-      #graphicsDeskLayer{position:absolute;inset:0;z-index:28;pointer-events:none;overflow:hidden}
-      .gfxProp{position:absolute;display:block;height:auto;object-fit:contain;filter:drop-shadow(0 7px 4px rgba(0,0,0,.32));pointer-events:auto;cursor:pointer;user-select:none;-webkit-user-drag:none;transform-origin:50% 85%;transition:transform .12s ease,filter .12s ease,opacity .18s ease;outline:none}
-      .gfxProp:hover,.gfxProp:focus-visible{transform:translateY(-7px) scale(1.055);filter:drop-shadow(0 13px 7px rgba(0,0,0,.38)) brightness(1.05)}
+      #graphicsDeskLayer{position:absolute;inset:0;z-index:29;pointer-events:none;overflow:hidden}
+      .gfxProp{
+        position:absolute;display:block;height:auto;object-fit:contain;
+        filter:drop-shadow(0 6px 4px rgba(0,0,0,.30));
+        pointer-events:auto;cursor:pointer;user-select:none;-webkit-user-drag:none;
+        transform-origin:50% 85%;transition:transform .12s ease,filter .12s ease,opacity .15s ease;
+      }
+      .gfxProp:hover{transform:translateY(-5px) scale(1.04);filter:drop-shadow(0 10px 5px rgba(0,0,0,.34))}
+      .gfxProp[data-action="monitor"]{width:18%;left:1.5%;bottom:13%}
+      .gfxProp[data-action="tray"]{width:13%;left:19%;bottom:7%}
+      .gfxProp[data-action="id"]{width:17%;left:39%;bottom:6%;opacity:.18;pointer-events:none;transform:rotate(-2deg)}
+      .gfxProp[data-action="id"].ready{opacity:1;pointer-events:auto}
+      .gfxProp[data-action="approve"]{width:8%;right:28%;bottom:7%;transform:rotate(-2deg)}
+      .gfxProp[data-action="reject"]{width:8%;right:20%;bottom:7%;transform:rotate(2deg)}
+      .gfxProp[data-action="phone"]{width:15%;right:1.4%;bottom:13%}
+      .gfxProp[data-action="tea"]{width:7%;right:13.5%;bottom:3%}
       .gfxProp.gfxPress{animation:gfxPress .22s ease}
       .gfxProp.gfxRing{animation:gfxRing .48s ease}
-      .gfxProp.gfxSip{animation:gfxSip .55s ease}
-      .gfxProp.gfxStamp{animation:gfxStamp .32s ease}
-      .gfxProp[data-action="monitor"]{width:18%;left:1.3%;bottom:13.5%;animation:gfxMonitorGlow 3s ease-in-out infinite}
-      .gfxProp[data-action="tray"]{width:13.5%;left:18.2%;bottom:7.2%}
-      .gfxProp[data-action="id"]{width:17%;left:38.2%;bottom:6.5%;transform:rotate(-2deg);opacity:.18;pointer-events:none}
-      .gfxProp[data-action="id"].ready{opacity:1;pointer-events:auto}
-      .gfxProp[data-action="approve"]{width:8.2%;right:28.3%;bottom:7.3%;transform:rotate(-2deg)}
-      .gfxProp[data-action="reject"]{width:8.2%;right:19.8%;bottom:7%;transform:rotate(2deg)}
-      .gfxProp[data-action="phone"]{width:15.2%;right:1.2%;bottom:13.8%}
-      .gfxProp[data-action="tea"]{width:7.4%;right:13.2%;bottom:3.1%}
-      .gfxProp[data-action="approve"]:hover,.gfxProp[data-action="reject"]:hover,.gfxProp[data-action="id"]:hover{transform:translateY(-7px) scale(1.06) rotate(0deg)}
+      .gfxProp.gfxSip{animation:gfxSip .5s ease}
+      .gfxProp.gfxStamp{animation:gfxStamp .3s ease}
 
-      #gfxAssetHint{position:absolute;z-index:35;right:8px;bottom:5px;background:rgba(12,16,13,.88);border:2px solid #596454;color:#eadfba;padding:5px 7px;font:800 8px/1.45 monospace;pointer-events:none}
-      #gfxStampFlash{position:absolute;z-index:40;left:50%;bottom:21%;transform:translateX(-50%) rotate(-4deg) scale(.7);opacity:0;padding:9px 16px;border:5px double currentColor;font:1000 23px monospace;letter-spacing:1px;pointer-events:none;background:rgba(240,224,184,.90)}
-      #gfxStampFlash.show{animation:gfxSeal .65s ease forwards}
-      #gfxStampFlash.approve{color:#215b3b}#gfxStampFlash.reject{color:#8d2f2b}
+      #gfxStampFlash{position:absolute;z-index:42;left:50%;bottom:21%;transform:translateX(-50%);opacity:0;padding:8px 14px;border:5px double currentColor;font:1000 22px monospace;background:#efe0b8;pointer-events:none}
+      #gfxStampFlash.approve{color:#255f40}#gfxStampFlash.reject{color:#8c302d}
+      #gfxStampFlash.show{animation:gfxSeal .6s ease forwards}
 
-      #gfxImagePreview{position:fixed;inset:0;z-index:2500;display:flex;align-items:center;justify-content:center;background:rgba(5,8,6,.82);padding:20px}
+      #gfxImagePreview{position:fixed;inset:0;z-index:2600;display:flex;align-items:center;justify-content:center;background:rgba(5,8,6,.84);padding:18px}
       #gfxImagePreview.hidden{display:none}
-      #gfxPreviewCard{position:relative;max-width:min(760px,92vw);max-height:84vh;background:#34291b;border:7px solid #14110d;box-shadow:18px 20px 0 rgba(0,0,0,.38);padding:16px;animation:gfxPaperUp .18s ease}
-      #gfxPreviewCard img{display:block;max-width:100%;max-height:72vh;object-fit:contain;image-rendering:auto}
-      #gfxPreviewCard .gfxPreviewLabel{color:#efe4bd;text-align:center;font:900 10px monospace;padding:9px 44px 0}
-      #gfxPreviewClose{position:absolute;left:-8px;top:-8px;z-index:2;background:#9b473f;color:#fff;border:4px solid #14110d;padding:7px 10px;font-weight:1000;cursor:pointer}
+      #gfxPreviewCard{position:relative;max-width:min(760px,92vw);max-height:84vh;background:#34291b;border:6px solid #15110e;padding:14px;box-shadow:16px 18px 0 rgba(0,0,0,.35)}
+      #gfxPreviewCard img{display:block;max-width:100%;max-height:72vh;object-fit:contain}
+      #gfxPreviewClose{position:absolute;left:-7px;top:-7px;background:#9b473f;color:#fff;border:4px solid #14110d;padding:7px 10px;font-weight:1000;cursor:pointer}
+      #gfxAssetHint{position:absolute;right:8px;bottom:4px;z-index:38;background:rgba(12,16,13,.9);border:2px solid #596454;color:#eadfba;padding:5px 7px;font-size:8px;pointer-events:none}
 
-      @keyframes gfxArrive{0%{transform:translateX(120px) scale(.92);opacity:0}100%{transform:translateX(0) scale(1);opacity:1}}
+      @keyframes gfxArrive{from{transform:translateX(90px) scale(.95);opacity:0}to{transform:none;opacity:1}}
       @keyframes gfxIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
       @keyframes gfxPress{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(4px) scale(.96)}}
-      @keyframes gfxRing{0%,100%{transform:rotate(0)}20%{transform:rotate(-4deg)}40%{transform:rotate(4deg)}60%{transform:rotate(-3deg)}80%{transform:rotate(3deg)}}
-      @keyframes gfxSip{0%,100%{transform:translateY(0) rotate(0)}45%{transform:translateY(-16px) rotate(-5deg)}}
-      @keyframes gfxStamp{0%{transform:translateY(0) scale(1)}45%{transform:translateY(11px) scale(.91)}100%{transform:translateY(0) scale(1)}}
-      @keyframes gfxSeal{0%{opacity:0;transform:translateX(-50%) rotate(-4deg) scale(1.65)}34%{opacity:1;transform:translateX(-50%) rotate(-4deg) scale(.96)}75%{opacity:1}100%{opacity:0;transform:translateX(-50%) rotate(-4deg) scale(1)}}
-      @keyframes gfxMonitorGlow{0%,100%{filter:drop-shadow(0 7px 4px rgba(0,0,0,.32)) drop-shadow(0 0 2px rgba(94,255,133,.12))}50%{filter:drop-shadow(0 7px 4px rgba(0,0,0,.32)) drop-shadow(0 0 8px rgba(94,255,133,.24))}}
-      @keyframes gfxFluor{0%,94%,100%{opacity:1}95%{opacity:.88}96%{opacity:1}97%{opacity:.91}98%{opacity:1}}
-      @keyframes gfxPaperUp{from{opacity:0;transform:translateY(22px) rotate(-1deg) scale(.96)}to{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+      @keyframes gfxRing{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}75%{transform:rotate(-3deg)}}
+      @keyframes gfxSip{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px) rotate(-4deg)}}
+      @keyframes gfxStamp{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(10px) scale(.92)}}
+      @keyframes gfxSeal{0%{opacity:0;transform:translateX(-50%) scale(1.5) rotate(-4deg)}30%,75%{opacity:1;transform:translateX(-50%) scale(1) rotate(-4deg)}100%{opacity:0;transform:translateX(-50%) scale(1) rotate(-4deg)}}
 
-      @media(max-width:1050px){
-        #intakeScreen .deskArea{margin-left:135px!important;margin-right:135px!important}
-        .gfxProp[data-action="monitor"]{width:20%;bottom:14%}.gfxProp[data-action="phone"]{width:17%;bottom:14%}
-      }
-      @media(max-width:760px){
-        #intakeScreen .scene{min-height:620px;background-position:center top!important}
-        #intakeScreen .deskArea{margin:7px 8px 12px!important;min-height:190px!important}
-        #graphicsDeskLayer{opacity:.98}
+      @media(max-width:900px){
+        #intakeScreen .scene{min-height:590px;background-position:center top!important}
+        #intakeScreen .deskArea{margin:6px 8px 12px!important;min-height:180px!important}
         .gfxProp[data-action="monitor"]{width:21%;left:1%;bottom:2%}
         .gfxProp[data-action="tray"]{width:15%;left:20%;bottom:1%}
         .gfxProp[data-action="id"]{width:20%;left:39%;bottom:1%}
@@ -100,7 +98,6 @@
     img.src=A+file;
     img.alt=label;
     img.title=label;
-    img.tabIndex=0;
     img.draggable=false;
     return img;
   }
@@ -108,7 +105,7 @@
   function injectGraphics(){
     addStyle();
     const scene=q('#intakeScreen .scene');
-    if(!scene)return;
+    if(!scene) return;
     if(!q('#graphicsDeskLayer')){
       const layer=document.createElement('div');
       layer.id='graphicsDeskLayer';
@@ -122,121 +119,87 @@
         makeProp('tea','tea_glass.webp','استكانة الشاي')
       );
       scene.appendChild(layer);
-
-      const hint=document.createElement('div');
-      hint.id='gfxAssetHint';hint.textContent='جرّبي تضغطين أدوات المكتب — الحين صارت تفاعلية';scene.appendChild(hint);
       const seal=document.createElement('div');seal.id='gfxStampFlash';scene.appendChild(seal);
+      const hint=document.createElement('div');hint.id='gfxAssetHint';hint.textContent='اضغطي أدوات المكتب للتجربة';scene.appendChild(hint);
     }
     if(!q('#gfxImagePreview')){
       const p=document.createElement('div');
       p.id='gfxImagePreview';p.className='hidden';
-      p.innerHTML=`<div id="gfxPreviewCard"><button id="gfxPreviewClose">رجّع البطاقة</button><img src="${A}alnouran_id_card.webp" alt="بطاقة جمهورية النوران التجريبية"><div class="gfxPreviewLabel">معاينة أصل بصري — اضغطي خارج البطاقة للرجوع</div></div>`;
+      p.innerHTML=`<div id="gfxPreviewCard"><button id="gfxPreviewClose">رجّع البطاقة</button><img src="${A}alnouran_id_card.webp" alt="بطاقة تجريبية"></div>`;
       document.body.appendChild(p);
       q('#gfxPreviewClose').onclick=()=>p.classList.add('hidden');
       p.addEventListener('click',e=>{if(e.target===p)p.classList.add('hidden')});
     }
   }
 
-  function notice(text){
-    const n=q('#intakeNotice');
-    if(n)n.textContent=text;
-  }
-
-  function toolByWords(words){
-    return qa('#intakeScreen .v2Tool, #intakeScreen button').find(el=>{
-      const t=(el.textContent||'').trim();
-      return words.some(w=>t.includes(w));
-    });
-  }
-
-  function animate(el,cls,ms=450){
-    el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);
-    setTimeout(()=>el.classList.remove(cls),ms);
-  }
+  function notice(t){const n=q('#intakeNotice');if(n)n.textContent=t}
+  function animate(el,cls,ms){el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),ms)}
+  function findTool(words){return qa('#intakeScreen .v2Tool,#intakeScreen button').find(el=>words.some(w=>(el.textContent||'').includes(w)))}
 
   function stampFlash(kind){
     const s=q('#gfxStampFlash');if(!s)return;
     s.textContent=kind==='approve'?'معتمد':'مرفوض';
     s.className=kind+' show';
-    setTimeout(()=>{s.className=''},680);
-  }
-
-  function openId(){
-    const p=q('#gfxImagePreview');if(p)p.classList.remove('hidden');
-    notice('رفعت البطاقة قدامج. قارني الاسم والبيانات مع كلام المراجع والملف.');
+    setTimeout(()=>s.className='',650);
   }
 
   function handleProp(el){
-    const action=el.dataset.action;
-    if(action==='monitor'){
+    const a=el.dataset.action;
+    if(a==='monitor'){
       animate(el,'gfxPress',250);
-      const b=toolByWords(['كمبيوتر','النظام','استعلام']);
-      if(b&&b!==el){b.click();notice('فتحت نظام الاستقبال على الكمبيوتر.');}else notice('الكمبيوتر جاهز، لكن أداة النظام مو متاحة بهالمرحلة.');
-      return;
-    }
-    if(action==='phone'){
+      const b=findTool(['كمبيوتر','النظام','استعلام']);
+      if(b){b.click();notice('فتحتي نظام الاستقبال.')}else notice('الكمبيوتر جاهز.');
+    }else if(a==='phone'){
       animate(el,'gfxRing',520);
-      const b=toolByWords(['تلفون','هاتف','اتصال']);
-      if(b&&b!==el){setTimeout(()=>b.click(),120);notice('رفعت السماعة...');}else notice('التلفون ساكت حالياً.');
-      return;
-    }
-    if(action==='tray'){
+      const b=findTool(['تلفون','هاتف','اتصال']);
+      if(b)setTimeout(()=>b.click(),120);else notice('التلفون ساكت حالياً.');
+    }else if(a==='tray'){
       animate(el,'gfxPress',250);
-      const hand=q('#handoverBtn');
-      if(hand&&!hand.disabled){hand.click();notice('استلمتي الملف وحطيتيه على المكتب.');}
-      else {
-        const doc=q('#intakeDocs .v2Doc, #intakeDocs .docCard');
-        if(doc){doc.click();notice('فتحتي أول ورقة من الملف.');}else notice('التراي فاضي للحين — استلمي الملف أول.');
-      }
-      return;
+      const h=q('#handoverBtn');
+      if(h&&!h.disabled){h.click();notice('استلمتي الملف.');}
+      else {const d=q('#intakeDocs .v2Doc,#intakeDocs .docCard');if(d)d.click();else notice('التراي فاضي للحين.');}
+    }else if(a==='id'){
+      animate(el,'gfxPress',250);q('#gfxImagePreview')?.classList.remove('hidden');
+    }else if(a==='approve'){
+      animate(el,'gfxStamp',350);stampFlash('approve');
+      const b=q('#approveRouteBtn');if(b&&!b.disabled)setTimeout(()=>b.click(),100);else notice('كملي الفحص أول.');
+    }else if(a==='reject'){
+      animate(el,'gfxStamp',350);stampFlash('reject');
+      const b=q('#rejectReasonBtn');if(b&&!b.disabled)setTimeout(()=>b.click(),100);else notice('كملي الفحص أول.');
+    }else if(a==='tea'){
+      animate(el,'gfxSip',550);notice('رشفة سريعة...');
     }
-    if(action==='id'){
-      animate(el,'gfxPress',250);openId();return;
-    }
-    if(action==='approve'){
-      animate(el,'gfxStamp',360);stampFlash('approve');
-      const b=q('#approveRouteBtn');if(b&&!b.disabled)setTimeout(()=>b.click(),120);else notice('ما تقدرين تعتمدين الحين — كملي الفحص أول.');
-      return;
-    }
-    if(action==='reject'){
-      animate(el,'gfxStamp',360);stampFlash('reject');
-      const b=q('#rejectReasonBtn');if(b&&!b.disabled)setTimeout(()=>b.click(),120);else notice('ما تقدرين ترفضين الحين — كملي الفحص أول.');
-      return;
-    }
-    if(action==='tea'){
-      animate(el,'gfxSip',600);notice('رشفة سريعة... والطابور للحين موجود.');
-    }
+    setTimeout(sync,80);
   }
 
   function sync(){
     injectGraphics();
-    const screen=q('#intakeScreen');if(!screen||screen.classList.contains('hidden'))return;
-    const caseLabel=q('#intakeCaseTop')?.textContent||'';
-    if(caseLabel&&caseLabel!==lastCaseLabel){
-      lastCaseLabel=caseLabel;
-      const av=q('#intakeAvatar');
-      if(av){av.classList.remove('gfxArrive','gfxIdle');void av.offsetWidth;av.classList.add('gfxArrive');setTimeout(()=>av.classList.add('gfxIdle'),430);}
-    }
     const id=q('.gfxProp[data-action="id"]');
     if(id){
-      let ready=false;
-      try{ready=!!q('#intakeDocs .v2Doc, #intakeDocs .docCard') || (q('#handoverBtn')&&q('#handoverBtn').disabled);}catch(e){}
+      const ready=!!q('#intakeDocs .v2Doc,#intakeDocs .docCard') || !!(q('#handoverBtn')&&q('#handoverBtn').disabled);
       id.classList.toggle('ready',ready);
+    }
+    const label=q('#intakeCaseTop')?.textContent||'';
+    if(label&&label!==lastCase){
+      lastCase=label;
+      const av=q('#intakeAvatar');
+      if(av){av.classList.remove('gfxArrive','gfxIdle');void av.offsetWidth;av.classList.add('gfxArrive');setTimeout(()=>av.classList.add('gfxIdle'),370);}
     }
   }
 
   document.addEventListener('click',e=>{
-    const prop=e.target.closest?.('.gfxProp');
-    if(prop){e.preventDefault();e.stopPropagation();handleProp(prop);}
+    const prop=e.target.closest&&e.target.closest('.gfxProp');
+    if(prop){e.preventDefault();e.stopPropagation();handleProp(prop);return;}
+    setTimeout(sync,80);
   },true);
-  document.addEventListener('keydown',e=>{
-    if((e.key==='Enter'||e.key===' ')&&e.target.matches?.('.gfxProp')){e.preventDefault();handleProp(e.target);}
-  });
+  window.addEventListener('resize',()=>requestAnimationFrame(sync));
 
-  const observer=new MutationObserver(()=>requestAnimationFrame(sync));
-  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','disabled']});
+  if(typeof loadIntake==='function'){
+    const previousLoadIntake=loadIntake;
+    loadIntake=function(){previousLoadIntake();setTimeout(sync,0)};
+  }
 
   addStyle();injectGraphics();sync();
   document.title='راجعنا باچر — Graphics Prototype '+GFX_VERSION;
-  const version=q('.version');if(version)version.textContent=GFX_VERSION+' // GRAPHICS PROTOTYPE';
+  const v=q('.version');if(v)v.textContent=GFX_VERSION+' // GRAPHICS PROTOTYPE';
 })();
