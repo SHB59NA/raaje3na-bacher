@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>راجعنا باچر — Career v1.0.2</title>
+<title>راجعنا باچر — Career v1.0.4</title>
 <style>
 :root{
   --ink:#171b17;--bg:#0d120e;--paper:#eadfba;--paper2:#d5c99f;--wall:#87957c;
@@ -125,15 +125,15 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
     <div class="fluor"></div><div class="window"></div><div class="window-sign">شباك 13</div>
     <div class="career-steps">
       <div class="career-step" id="step1">1 — موظف استقبال</div>
-      <div class="career-step" id="step2">2 — موظف وزارة • 200 د.ك</div>
-      <div class="career-step" id="step3">3 — مراقب • 400 د.ك</div>
+      <div class="career-step hidden" id="step2">2 — موظف وزارة • 200 د.ك</div>
+      <div class="career-step hidden" id="step3">3 — مراقب • 400 د.ك</div>
     </div>
   </div>
   <div class="title-copy">
     <div class="agency">الهيئة العامة لشؤون المواطنين والحالات غير الاعتيادية</div>
     <h1>راجعنا باچر</h1>
     <div class="subtitle">CAREER MODE</div>
-    <div class="desc">ابدأ موظف استقبال، دقق معاملات كل الجهات ووجّهها للوزارة والدور الصح. إذا وصل معاشك 200 تترقى لموظف وزارة وتشتغل على النظام. عند 400 تصير مراقب وتراجع كتب الموظفين ومشاكلهم. والواسطة؟ تمشي... لين تنصاد.</div>
+    <div class="desc">استلم معاملات المراجعين، دقق الأوراق ووجّه المعاملة للجهة والدور الصح. المرحلة الحالية تركز بالكامل على الاستقبال والواسطة والتدقيق.</div>
     <div class="savegrid">
       <span>RANK</span><b id="titleRank">موظف استقبال</b>
       <span>SALARY</span><b id="titleSalary">100 KD</b>
@@ -142,7 +142,7 @@ linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px) 0 0/8px 8px,#101711}
     </div>
     <button class="btn amber" id="startCareerBtn">ابدأ الدوام</button>
     <button class="btn dark" id="resetBtn" style="margin-top:9px">مسح الحفظ — بداية من 100 د.ك</button>
-    <div class="version">v1.0.2 // CAREER SYSTEM</div>
+    <div class="version">v1.0.4 // RECEPTION ONLY</div>
   </div>
 </section>
 
@@ -331,7 +331,7 @@ const SAVE={
 const START_SALARY=100, REWARD=5, PENALTY=10, WASTA_PENALTY=50;
 const rankNames={1:'موظف استقبال',2:'موظف وزارة',3:'مراقب'};
 let salary=num(localStorage.getItem(SAVE.salary),START_SALARY);
-let rank=num(localStorage.getItem(SAVE.rank),1); if((rank===2&&salary<200)||(rank===3&&salary<400)||![1,2,3].includes(rank)) rank=1;
+let rank=1; localStorage.setItem(SAVE.rank,'1');
 let selectedMinistry=localStorage.getItem(SAVE.ministry)||'';
 let selectedCoworker=localStorage.getItem(SAVE.coworker)||'';
 let wastaHeat=num(localStorage.getItem(SAVE.heat),0);
@@ -348,9 +348,9 @@ function save(){
 }
 const screens=['titleScreen','briefScreen','intakeScreen','promotionScreen','ministrySelectScreen','coworkerSelectScreen','ministryScreen','supervisorScreen','dayEndScreen','fireScreen'];
 function show(id){screens.forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
-function rankNext(){return rank===1?200:rank===2?400:null}
+function rankNext(){return null}
 function updateTitle(){
- $('#titleRank').textContent=rankNames[rank];$('#titleSalary').textContent=salary+' KD';$('#titleNext').textContent=rankNext()?rankNext()+' KD':'MAX RANK';
+ $('#titleRank').textContent=rankNames[rank];$('#titleSalary').textContent=salary+' KD';$('#titleNext').textContent='استقبال فقط';
  $('#titleHeat').textContent=wastaHeat+'%';
  $('#step1').classList.toggle('unlocked',rank>=1);$('#step2').classList.toggle('unlocked',rank>=2);$('#step3').classList.toggle('unlocked',rank>=3);
  $('#startCareerBtn').textContent=rank===1?'ابدأ دوام الاستقبال':rank===2?'ادخل الوزارة':'افتح مكتب المراقب';
@@ -471,7 +471,7 @@ function adjustSalary(delta){salary=Math.max(0,salary+delta);save();updateBars()
 function feedback(msg,type='goodFb',ms=1150){const f=$('#feedback');f.className='feedback '+type;f.innerHTML=msg;f.classList.remove('hidden');setTimeout(()=>f.classList.add('hidden'),ms)}
 function finishDecision(ok,why,stage){if(busy)return;busy=true;if(ok){dayScore++;adjustSalary(REWARD);feedback('✓ صح<br><span class="tiny">'+esc(why)+'</span>','goodFb')}else{dayWrong++;if(!adjustSalary(-PENALTY))return;feedback('✕ غلط<br><span class="tiny">'+esc(why)+'</span>','badFb')}setTimeout(()=>afterCase(stage),1350)}
 function resolveWasta(stage){if(busy)return;busy=true;const chance=Math.min(80,25+wastaHeat);const caught=Math.random()*100<chance;if(caught){wastaHeat=0;save();feedback(`التفتيش مسك المعاملة.<br><b>-50 د.ك</b><br><span class="tiny">نسبة الانكشاف كانت ${chance}%</span>`,'badFb',1500);if(!adjustSalary(-WASTA_PENALTY))return;dayWrong++}else{wastaHeat=Math.min(55,wastaHeat+10);save();feedback(`عدّت هالمرة.<br><span class="tiny">ما أخذت +5، وريحة الواسطة صارت ${wastaHeat}%.</span>`,'wastaFb',1500)}setTimeout(()=>afterCase(stage),1650)}
-function afterCase(stage){if(salary<=0)return;if(rank===1&&salary>=200){rank=2;save();showPromotion(2);return}if(rank===2&&salary>=400){rank=3;save();showPromotion(3);return}caseIndex++;if(caseIndex>=currentBatch.length){finishDay(stage);return}if(stage==='intake')loadIntake();else if(stage==='ministry')loadMinistryTask();else loadSupervisor()}
+function afterCase(stage){if(salary<=0)return;caseIndex++;if(caseIndex>=currentBatch.length){finishDay(stage);return}if(stage==='intake')loadIntake();else if(stage==='ministry')loadMinistryTask();else loadSupervisor()}
 function finishDay(stage){const gain=salary-dayStartSalary;$('#dayEndTitle').textContent='نهاية الدوام — اليوم '+day;$('#dayStats').innerHTML=`<div class="infoCard"><b>${dayScore}</b>قرارات صحيحة</div><div class="infoCard"><b>${dayWrong}</b>أخطاء / انكشاف</div><div class="infoCard"><b>${gain>=0?'+':''}${gain} د.ك</b>صافي اليوم</div>`;$('#dayMessage').innerHTML=`المعاش الحالي: <b>${salary} د.ك</b><br>${rankNext()?`باقي <b>${Math.max(0,rankNext()-salary)} د.ك</b> على الترقية الياية.`:'وصلت أعلى رتبة حالياً.'}`;$('#nextDayBtn').dataset.stage=stage;show('dayEndScreen')}
 $('#nextDayBtn').onclick=()=>{day++;save();if(rank===1)startIntakeDay();else if(rank===2)startMinistryDay();else startSupervisorDay()};
 $('#dayBackTitleBtn').onclick=()=>{day++;save();updateTitle();show('titleScreen')};
