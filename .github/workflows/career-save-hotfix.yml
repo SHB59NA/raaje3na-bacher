@@ -1,16 +1,32 @@
-name: Validate reception build
+name: Repair and validate reception build
 on:
   push:
     paths:
       - '.github/workflows/career-save-hotfix.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
-  validate:
+  repair:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract JavaScript
+      - name: Repair missing intake brace
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = "$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}\n$('#approveRouteBtn')"
+          new = "$('#intakeAvatar').onclick=()=>{const line=randLine(c.idleLines);if(line)$('#intakeDialogue').textContent=line}}\n$('#approveRouteBtn')"
+          if old not in s:
+              raise SystemExit('Expected broken intake pattern not found')
+          s = s.replace(old, new, 1)
+          s = s.replace('Career v1.0.5</title>', 'Career v1.0.6</title>')
+          s = s.replace('v1.0.5 // VISITOR PERSONALITIES', 'v1.0.6 // VISITOR PERSONALITIES')
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Validate JavaScript syntax
         run: |
           python <<'PY'
           from pathlib import Path
@@ -20,7 +36,12 @@ jobs:
           if not m:
               raise SystemExit('No script block found')
           Path('/tmp/game.js').write_text(m.group(1), encoding='utf-8')
-          print('Extracted JS chars:', len(m.group(1)))
           PY
-      - name: Check JavaScript syntax
-        run: node --check /tmp/game.js
+          node --check /tmp/game.js
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Fix reception start button JavaScript error"
+          git push
