@@ -278,7 +278,7 @@
   }
 
   function renderQuestions(){
-    const c=currentCase(),p=profileFor(c),wrap=$('#questionButtons'),counter=$('#questionCounter');
+    const p=currentProfile(),wrap=$('#questionButtons'),counter=$('#questionCounter');
     if(!wrap||!counter||!receptionState)return;
     counter.textContent=receptionState.questionsLeft+' أسئلة متبقية';
     wrap.innerHTML='';
@@ -303,11 +303,16 @@
   function receiveFile(){
     if(!receptionState||receptionState.fileReceived)return;
     receptionState.fileReceived=true;
+    const c=currentCase();
     $('#handoverBtn').disabled=true;
     $('#handoverBtn').textContent='الملف مستلم';
     $('#approveRouteBtn').disabled=false;
     $('#rejectReasonBtn').disabled=false;
     $('#intakeServiceTag').textContent='ملف مستلم';
+    $('#wastaTag').classList.toggle('hidden',!c.wasta);
+    $('#intakeWastaBox').classList.toggle('hidden',!c.wasta);
+    $('#passWastaBtn').classList.toggle('hidden',!c.wasta);
+    if(c.wasta)$('#intakeWastaBox').innerHTML='<b>ملاحظة مشبوهة داخل الملف:</b><br>'+esc(c.wasta);
     renderDocs();
     updatePhase();
     setNotice('اضغط على كل مستند عشان تفتحه وتقرأه. بعدها استخدم الكمبيوتر أو التعميم إذا احتجت.');
@@ -342,7 +347,7 @@
   }
 
   function useComputer(){
-    if(!receptionState)return;
+    if(!receptionState||!receptionState.fileReceived){setNotice('استلم الملف أول عشان يكون عندك بيانات الاستعلام.');return;}
     receptionState.systemChecked=true;
     const c=currentCase(),p=currentProfile();
     $('#modalBody').innerHTML=`<h2>النظام المركزي</h2><div class="crtLine"><b>${esc(c.name)}</b></div><p style="line-height:1.8">${esc(p.system)}</p><button class="btn green wide" id="v2SaveSystem">سجل المعلومة</button>`;
@@ -356,7 +361,7 @@
     if(c.wasta&&!p.phone)msg='تدق الرقم المكتوب بالملاحظة. يرد شخص ويقول: «مشّها وخلاص.»';
     $('#modalBody').innerHTML=`<h2>تلفون المكتب</h2><p style="line-height:1.9">${esc(msg)}</p>`;
     $('#modal').classList.remove('hidden');
-    if(c.wasta)addNote('في ضغط/واسطة على المعاملة.');
+    if(c.wasta&&receptionState.fileReceived)addNote('في ضغط/واسطة على المعاملة.');
   }
 
   function useCircular(){
@@ -367,6 +372,7 @@
   }
 
   function useMarker(){
+    if(!receptionState||!receptionState.fileReceived){setNotice('استلم الملف وافحصه قبل لا تسجل تناقض.');return;}
     const p=currentProfile();
     $('#modalBody').innerHTML=`<h2>ملاحظة / تناقض</h2><p>شنو الشي اللي تبي تثبته بملاحظاتك؟</p><div class="choiceGrid">${p.marker.map((m,i)=>`<button class="btn blue v2MarkerChoice" data-i="${i}">${esc(m)}</button>`).join('')}</div>`;
     $('#modal').classList.remove('hidden');
@@ -425,8 +431,7 @@
   }
 
   function maybeEvent(){
-    if(caseIndex===0)return;
-    if(Math.random()>.30)return;
+    if(caseIndex===0||Math.random()>.30)return;
     const pool=events.filter(e=>day>=e.minDay);if(!pool.length)return;
     const e=pool[Math.floor(Math.random()*pool.length)];
     setTimeout(()=>feedback('حدث بالمكتب<br><span class="tiny">'+esc(e.text)+'</span>','wastaFb',1900),350);
@@ -438,7 +443,6 @@
     save();localStorage.setItem(INIT_KEY,'1');
   }
 
-  // Currency and prototype labels.
   document.title='راجعنا باچر — Reception Prototype '+VERSION;
   const subtitle=document.querySelector('.subtitle');if(subtitle)subtitle.textContent='RECEPTION PROTOTYPE';
   const version=document.querySelector('.version');if(version)version.textContent=VERSION+' // GAMEPLAY TEST';
@@ -489,14 +493,12 @@
     $('#intakeDocs').innerHTML='<div class="docCard"><h4>الملف للحين عند المراجع</h4><p>اسأله أول أو استلم الملف مباشرة.</p></div>';
     $('#intakeRequirements').innerHTML='المتطلبات ما تظهر لك كإجابة جاهزة. استخدم «دفتر التعاميم» إذا احتجت القاعدة الرسمية.';
     $('#intakeMeta').innerHTML=`<b>${esc(c.name)}</b><br><span class="tag">الشخصية: ${esc(c.personality||'عادي')}</span><br><br>المراجع قاعد يشرح طلبه. إنت لازم تحدد نوع المعاملة من كلامه والملف.`;
-    $('#wastaTag').classList.toggle('hidden',!c.wasta);
-    $('#intakeWastaBox').classList.toggle('hidden',!c.wasta);
-    $('#passWastaBtn').classList.toggle('hidden',!c.wasta);
-    if(c.wasta)$('#intakeWastaBox').innerHTML='<b>ملاحظة مشبوهة داخل الملف:</b><br>'+esc(c.wasta);
+    $('#wastaTag').classList.add('hidden');
+    $('#intakeWastaBox').classList.add('hidden');
+    $('#passWastaBtn').classList.add('hidden');
     $('#approveRouteBtn').onclick=()=>{if(busy)return;openApproveDecision()};
     $('#rejectReasonBtn').onclick=()=>{if(busy)return;openRejectDecision()};
     $('#passWastaBtn').onclick=()=>{if(busy)return;if(!receptionState.fileReceived){setNotice('استلم الملف أول.');return}resolveWasta('intake')};
-    setNotice='function'===typeof setNotice?setNotice:()=>{};
     window.setTimeout(maybeEvent,80);
   };
 
@@ -514,7 +516,7 @@
     setTimeout(()=>afterCase('intake'),2050);
   };
 
-  resolveWasta=function(stage){
+  resolveWasta=function(){
     if(busy)return;busy=true;
     const c=currentCase();const line=randLine(c.wastaLines||c.idleLines);if(line)$('#intakeDialogue').textContent=line;
     const chance=Math.min(80,25+wastaHeat);const caught=Math.random()*100<chance;
