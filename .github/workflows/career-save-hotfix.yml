@@ -1,4 +1,4 @@
-name: Load and validate reception gameplay prototype
+name: Load and validate reception gameplay prototype v1.1.0
 on:
   push:
     paths:
@@ -56,7 +56,7 @@ jobs:
             "ملاحظة / تناقض",
             "نوع المعاملة",
             "resolveIntakeApproveV2",
-            "قرار الصح +5",
+            "القرار الصح +5",
             "الغلط -10",
             "-50 دينار",
             "الغريب مو معناته مرفوض"
