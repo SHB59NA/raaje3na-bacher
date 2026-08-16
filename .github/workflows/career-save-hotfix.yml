@@ -1,4 +1,4 @@
-name: Load reception graphics prototype v1.3.0
+name: Hotfix reception graphics v1.3.1
 on:
   push:
     paths:
@@ -11,41 +11,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Attach graphics layer
+      - name: Remove graphics mutation loop
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
+          p=Path('reception-graphics-v1.js')
           s=p.read_text(encoding='utf-8')
-          old='<script src="reception-v3.js?v=1.2.0"></script>'
-          new=old+'\n<script src="reception-graphics-v1.js?v=1.3.0"></script>'
-          if 'reception-graphics-v1.js?v=1.3.0' not in s:
-              if old not in s:
-                  raise SystemExit('reception v3 loader not found')
-              s=s.replace(old,new,1)
+          s=s.replace("const GFX_VERSION='v1.3.0';", "const GFX_VERSION='v1.3.1';", 1)
+          old="""  const observer=new MutationObserver(()=>requestAnimationFrame(sync));
+  observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','disabled']});
+
+  addStyle();injectGraphics();sync();"""
+          new="""  // Keep graphics sync event-driven. A subtree MutationObserver here can fight
+  // the inspection layer observer and freeze some mobile browsers.
+  document.addEventListener('click',()=>setTimeout(sync,50));
+  window.addEventListener('resize',()=>requestAnimationFrame(sync));
+  if(typeof loadIntake==='function'){
+    const graphicsLoadIntake=loadIntake;
+    loadIntake=function(){
+      graphicsLoadIntake();
+      setTimeout(sync,0);
+    };
+  }
+
+  addStyle();injectGraphics();sync();"""
+          if old not in s:
+              raise SystemExit('graphics observer block not found')
+          s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
+
+          p=Path('index.html')
+          h=p.read_text(encoding='utf-8')
+          if 'reception-graphics-v1.js?v=1.3.0' not in h:
+              raise SystemExit('graphics v1.3.0 loader not found')
+          h=h.replace('reception-graphics-v1.js?v=1.3.0','reception-graphics-v1.js?v=1.3.1',1)
+          p.write_text(h,encoding='utf-8')
           PY
 
-      - name: Validate graphics JavaScript
+      - name: Validate hotfix
         run: |
           node --check reception-graphics-v1.js
-          grep -q 'reception-graphics-v1.js?v=1.3.0' index.html
-
-      - name: Validate graphics assets
-        run: |
+          grep -q "const GFX_VERSION='v1.3.1'" reception-graphics-v1.js
+          grep -q 'reception-graphics-v1.js?v=1.3.1' index.html
+          if grep -q 'new MutationObserver(()=>requestAnimationFrame(sync))' reception-graphics-v1.js; then
+            echo 'Unsafe graphics observer still present'
+            exit 1
+          fi
           test -f assets/prototype/reception_scene_bg.webp
           test -f assets/prototype/crt_monitor.webp
           test -f assets/prototype/desk_phone.webp
-          test -f assets/prototype/document_tray.webp
-          test -f assets/prototype/approval_stamp.webp
-          test -f assets/prototype/rejection_stamp.webp
-          test -f assets/prototype/tea_glass.webp
-          test -f assets/prototype/alnouran_id_card.webp
 
-      - name: Commit loader
+      - name: Commit hotfix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet || git commit -m "Load reception graphics prototype v1.3.0"
+          git add reception-graphics-v1.js index.html
+          git diff --cached --quiet || git commit -m "Fix graphics prototype mobile freeze v1.3.1"
           git push
