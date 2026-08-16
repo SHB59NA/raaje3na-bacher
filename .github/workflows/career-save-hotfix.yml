@@ -1,4 +1,4 @@
-name: Load inspection desk gameplay v1.2.0
+name: Load reception graphics prototype v1.3.0
 on:
   push:
     paths:
@@ -11,67 +11,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Attach inspection desk layer
+      - name: Attach graphics layer
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          tag='<script src="reception-v3.js?v=1.2.0"></script>'
-          if tag not in s:
-              anchor='<script src="reception-v2.js?v=1.1.1"></script>'
-              if anchor not in s:
-                  raise SystemExit('reception v2 loader not found')
-              s=s.replace(anchor,anchor+'\n'+tag,1)
+          old='<script src="reception-v3.js?v=1.2.0"></script>'
+          new=old+'\n<script src="reception-graphics-v1.js?v=1.3.0"></script>'
+          if 'reception-graphics-v1.js?v=1.3.0' not in s:
+              if old not in s:
+                  raise SystemExit('reception v3 loader not found')
+              s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
           PY
 
-      - name: Validate JavaScript
+      - name: Validate graphics JavaScript
         run: |
-          node --check reception-v2.js
-          node --check reception-v3.js
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          html=Path('index.html').read_text(encoding='utf-8')
-          m=re.search(r'<script>([\s\S]*?)</script>',html)
-          if not m: raise SystemExit('embedded JS missing')
-          Path('/tmp/base.js').write_text(m.group(1),encoding='utf-8')
-          required=[
-            'reception-v2.js?v=1.1.1',
-            'reception-v3.js?v=1.2.0'
-          ]
-          for x in required:
-              if x not in html: raise SystemExit('missing loader '+x)
-          PY
-          node --check /tmp/base.js
+          node --check reception-graphics-v1.js
+          grep -q 'reception-graphics-v1.js?v=1.3.0' index.html
 
-      - name: Validate inspection flow
+      - name: Validate graphics assets
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          js=Path('reception-v3.js').read_text(encoding='utf-8')
-          required=[
-            "const VERSION='v1.2.0'",
-            'inspectionHud',
-            'inspectionRail',
-            'documentViewer',
-            'نادي المراجع اللي بعده',
-            'أنهِ دوام الاستقبال',
-            "afterCase=function()",
-            'goNextVisitor',
-            'openDocumentFromCard',
-            'INSPECTION DESK'
-          ]
-          for token in required:
-              if token not in js: raise SystemExit('missing inspection feature: '+token)
-          print('Inspection desk v1.2.0 validation passed.')
-          PY
+          test -f assets/prototype/reception_scene_bg.webp
+          test -f assets/prototype/crt_monitor.webp
+          test -f assets/prototype/desk_phone.webp
+          test -f assets/prototype/document_tray.webp
+          test -f assets/prototype/approval_stamp.webp
+          test -f assets/prototype/rejection_stamp.webp
+          test -f assets/prototype/tea_glass.webp
+          test -f assets/prototype/alnouran_id_card.webp
 
       - name: Commit loader
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Load inspection desk gameplay v1.2.0"
+          git diff --cached --quiet || git commit -m "Load reception graphics prototype v1.3.0"
           git push
