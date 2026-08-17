@@ -1,4 +1,4 @@
-name: Hotfix inspection observer freeze v1.2.1
+name: Load tactile drag desk v1.4.0
 on:
   push:
     paths:
@@ -11,31 +11,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch inspection observer
+      - name: Attach drag desk layer
         run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwPVBhdGgoJ3JlY2VwdGlvbi12My5qcycpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKcz1zLnJlcGxhY2UoIi8vINix2KfYrNi52YbYpyDYqNin2obYsSDigJQgSW5zcGVjdGlvbiBEZXNrIEdhbWVwbGF5IExheWVyIHYxLjIuMCIsCiAgICAgICAgICAgICIvLyDYsdin2KzYudmG2Kcg2KjYp9qG2LEg4oCUIEluc3BlY3Rpb24gRGVzayBHYW1lcGxheSBMYXllciB2MS4yLjEiLDEpCnM9cy5yZXBsYWNlKCJjb25zdCBWRVJTSU9OPSd2MS4yLjAnOyIsImNvbnN0IFZFUlNJT049J3YxLjIuMSc7IiwxKQoKb2xkID0gIiIiICAvLyBNdXRhdGlvbiBvYnNlcnZlciBrZWVwcyB0aGUgSFVEIGluIHN5bmMgd2l0aCB0aGUgZXhpc3RpbmcgcHJvdG90eXBlIHdpdGhvdXQgZHVwbGljYXRpbmcgaXRzIHJ1bGVzLgogIGNvbnN0IG9ic2VydmVyPW5ldyBNdXRhdGlvbk9ic2VydmVyKCgpPT5zeW5jSW5zcGVjdGlvbkh1ZCgpKTsKICBvYnNlcnZlci5vYnNlcnZlKGRvY3VtZW50LmJvZHkse3N1YnRyZWU6dHJ1ZSxjaGlsZExpc3Q6dHJ1ZSxhdHRyaWJ1dGVzOnRydWUsYXR0cmlidXRlRmlsdGVyOlsnY2xhc3MnLCdkaXNhYmxlZCddfSk7CgogIGluamVjdEluc3BlY3Rpb25VSSgpOyIiIgpuZXcgPSAiIiIgIC8vIEtlZXAgSFVEIHVwZGF0ZXMgZXZlbnQtZHJpdmVuLiBBIGRvY3VtZW50LXdpZGUgTXV0YXRpb25PYnNlcnZlciBjYW4KICAvLyBjcmVhdGUgZmVlZGJhY2sgbG9vcHMgd2l0aCB0aGUgZ3JhcGhpY3MgbGF5ZXIgb24gbW9iaWxlIGJyb3dzZXJzLgogIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoJ2NsaWNrJywoKT0+c2V0VGltZW91dChzeW5jSW5zcGVjdGlvbkh1ZCwwKSk7CiAgd2luZG93LmFkZEV2ZW50TGlzdGVuZXIoJ3Jlc2l6ZScsKCk9PnJlcXVlc3RBbmltYXRpb25GcmFtZShzeW5jSW5zcGVjdGlvbkh1ZCkpOwoKICBpbmplY3RJbnNwZWN0aW9uVUkoKTsiIiIKaWYgb2xkIG5vdCBpbiBzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgnaW5zcGVjdGlvbiBvYnNlcnZlciBibG9jayBub3QgZm91bmQnKQpzPXMucmVwbGFjZShvbGQsbmV3LDEpCnAud3JpdGVfdGV4dChzLGVuY29kaW5nPSd1dGYtOCcpCgpwPVBhdGgoJ2luZGV4Lmh0bWwnKQpoPXAucmVhZF90ZXh0KGVuY29kaW5nPSd1dGYtOCcpCm9sZF9sb2FkZXI9J3JlY2VwdGlvbi12My5qcz92PTEuMi4wJwpuZXdfbG9hZGVyPSdyZWNlcHRpb24tdjMuanM/dj0xLjIuMScKaWYgb2xkX2xvYWRlciBub3QgaW4gaDoKICAgIHJhaXNlIFN5c3RlbUV4aXQoJ29sZCBpbnNwZWN0aW9uIGxvYWRlciBub3QgZm91bmQnKQpoPWgucmVwbGFjZShvbGRfbG9hZGVyLG5ld19sb2FkZXIsMSkKcC53cml0ZV90ZXh0KGgsZW5jb2Rpbmc9J3V0Zi04JykK' | base64 -d > /tmp/patch.py
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgnaW5kZXguaHRtbCcpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKYW5jaG9yPSc8c2NyaXB0IHNyYz0icmVjZXB0aW9uLWdyYXBoaWNzLXYxLmpzP3Y9MS4zLjEiPjwvc2NyaXB0PicKdGFnPSc8c2NyaXB0IHNyYz0icmVjZXB0aW9uLWRyYWctdjEuanM/dj0xLjQuMCI+PC9zY3JpcHQ+JwppZiB0YWcgbm90IGluIHM6CiAgICBpZiBhbmNob3Igbm90IGluIHM6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgnZ3JhcGhpY3MgbG9hZGVyIG5vdCBmb3VuZCcpCiAgICBzPXMucmVwbGFjZShhbmNob3IsIGFuY2hvcisnXG4nK3RhZywgMSkKcC53cml0ZV90ZXh0KHMsZW5jb2Rpbmc9J3V0Zi04JykK' | base64 -d > /tmp/patch.py
           python /tmp/patch.py
 
-      - name: Validate no observer loops
+      - name: Validate tactile desk
         run: |
+          node --check reception-v2.js
           node --check reception-v3.js
           node --check reception-graphics-v1.js
-          grep -q "const VERSION='v1.2.1'" reception-v3.js
-          grep -q 'reception-v3.js?v=1.2.1' index.html
-          grep -q 'reception-graphics-v1.js?v=1.3.1' index.html
-          if grep -q 'new MutationObserver' reception-v3.js; then
-            echo 'Inspection MutationObserver still present'
-            exit 1
-          fi
-          if grep -q 'new MutationObserver' reception-graphics-v1.js; then
-            echo 'Graphics MutationObserver still present'
+          node --check reception-drag-v1.js
+          grep -q 'reception-drag-v1.js?v=1.4.0' index.html
+          grep -q "const VERSION='v1.4.0'" reception-drag-v1.js
+          grep -q "Pointer/touch driven inspection desk" reception-drag-v1.js
+          grep -q "bindFolder" reception-drag-v1.js
+          grep -q "bindStamps" reception-drag-v1.js
+          grep -q "buildPapers" reception-drag-v1.js
+          if grep -q 'new MutationObserver' reception-drag-v1.js; then
+            echo 'Drag desk must stay event-driven'
             exit 1
           fi
 
-      - name: Commit hotfix
+      - name: Commit drag loader
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reception-v3.js index.html
-          git diff --cached --quiet || git commit -m "Fix mobile observer freeze v1.2.1"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Enable tactile drag desk v1.4.0"
           git push
