@@ -1,4 +1,4 @@
-name: Load tactile drag desk v1.4.0
+name: Load optional dialogue history v1.4.1
 on:
   push:
     paths:
@@ -11,32 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Attach drag desk layer
+      - name: Attach dialogue toggle
         run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgnaW5kZXguaHRtbCcpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKYW5jaG9yPSc8c2NyaXB0IHNyYz0icmVjZXB0aW9uLWdyYXBoaWNzLXYxLmpzP3Y9MS4zLjEiPjwvc2NyaXB0PicKdGFnPSc8c2NyaXB0IHNyYz0icmVjZXB0aW9uLWRyYWctdjEuanM/dj0xLjQuMCI+PC9zY3JpcHQ+JwppZiB0YWcgbm90IGluIHM6CiAgICBpZiBhbmNob3Igbm90IGluIHM6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgnZ3JhcGhpY3MgbG9hZGVyIG5vdCBmb3VuZCcpCiAgICBzPXMucmVwbGFjZShhbmNob3IsIGFuY2hvcisnXG4nK3RhZywgMSkKcC53cml0ZV90ZXh0KHMsZW5jb2Rpbmc9J3V0Zi04JykK' | base64 -d > /tmp/patch.py
-          python /tmp/patch.py
+          python -c "from pathlib import Path; p=Path('index.html'); s=p.read_text(encoding='utf-8'); anchor='<script src=\"reception-drag-v1.js?v=1.4.0\"></script>'; tag='<script src=\"reception-dialogue-toggle.js?v=1.4.1\"></script>'; assert anchor in s, 'drag loader not found'; s=s if tag in s else s.replace(anchor,anchor+'\\n'+tag,1); p.write_text(s,encoding='utf-8')"
 
-      - name: Validate tactile desk
+      - name: Validate dialogue toggle
         run: |
-          node --check reception-v2.js
-          node --check reception-v3.js
-          node --check reception-graphics-v1.js
+          node --check reception-dialogue-toggle.js
           node --check reception-drag-v1.js
-          grep -q 'reception-drag-v1.js?v=1.4.0' index.html
-          grep -q "const VERSION='v1.4.0'" reception-drag-v1.js
-          grep -q "Pointer/touch driven inspection desk" reception-drag-v1.js
-          grep -q "bindFolder" reception-drag-v1.js
-          grep -q "bindStamps" reception-drag-v1.js
-          grep -q "buildPapers" reception-drag-v1.js
-          if grep -q 'new MutationObserver' reception-drag-v1.js; then
-            echo 'Drag desk must stay event-driven'
+          grep -q 'reception-dialogue-toggle.js?v=1.4.1' index.html
+          grep -q 'dialogueLogCollapsed' reception-dialogue-toggle.js
+          grep -q 'سجل الحوار' reception-dialogue-toggle.js
+          if grep -q 'new MutationObserver' reception-dialogue-toggle.js; then
+            echo 'Dialogue toggle must stay event-driven'
             exit 1
           fi
 
-      - name: Commit drag loader
+      - name: Commit dialogue loader
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Enable tactile drag desk v1.4.0"
+          git diff --cached --quiet || git commit -m "Make dialogue history optional v1.4.1"
           git push
